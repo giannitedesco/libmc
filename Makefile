@@ -4,7 +4,7 @@ CC := $(CROSS_COMPILE)gcc
 LD := $(CROSS_COMPILE)ld
 AR := $(CROSS_COMPILE)ar
 
-EXTRA_DEFS := -D_FILE_OFFSET_BITS=64
+EXTRA_DEFS := -D_FILE_OFFSET_BITS=64 -Iinclude
 CFLAGS := -g -pipe -O2 -Wall \
 	-Wsign-compare -Wcast-align \
 	-Waggregate-return \
@@ -20,7 +20,9 @@ CFLAGS := -g -pipe -O2 -Wall \
 
 MCDUMP_BIN := mcdump
 MCDUMP_LIBS := 
-MCDUMP_OBJ = mcdump.o
+MCDUMP_OBJ = mcdump.o \
+		region.o \
+		chunk.o
 
 ALL_BIN := $(MCDUMP_BIN)
 ALL_OBJ := $(MCDUMP_OBJ)
@@ -57,15 +59,6 @@ $(MCDUMP_BIN): $(MCDUMP_OBJ)
 
 clean:
 	rm -f $(ALL_TARGETS) $(ALL_OBJ) $(ALL_DEP)
-
-webroot.h: makeroot MANIFEST ROOT $(CLEAN_DEP)
-	./makeroot `cat ROOT` < MANIFEST
-
-root: webroot.h
-
-markov.c: mkmarkov WALK
-	./mkmarkov < WALK
-walk: markov.c
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(ALL_DEP)
