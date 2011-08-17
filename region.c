@@ -83,26 +83,37 @@ static int chunk_lookup(struct _region *r, uint8_t x, uint8_t z,
 
 static uint8_t *region_decompress(const uint8_t *buf, size_t len, size_t *dlen)
 {
-	uint8_t *d;
+	uint8_t *d = NULL, *new;
 	int ret;
 
-	/* compression ratio of 3 ought to be more than enough */
-	*dlen = len * 3;
-	d = malloc(*dlen);
-	if ( NULL == d )
-		return NULL;
+	*dlen = len * 32;
 
-	ret = uncompress(d, dlen, buf, len) == Z_OK;
+again:
+	new = realloc(d, *dlen);
+	if ( NULL == new ) {
+		free(d);
+		return NULL;
+	}
+
+	d = new;
+
+	ret = uncompress(d, dlen, buf, len);
 	switch(ret) {
 	case Z_OK:
-		return d;
+		break;
 	case Z_BUF_ERROR:
-		/* gah */
-		printf("UP TEH BUFFERZZ!!\n");
+		*dlen *= 2;
+		goto again;
 	default:
 		free(d);
 		return NULL;
 	}
+
+	new = realloc(d, *dlen);
+	if ( new )
+		d = new;
+
+	return d;
 }
 
 chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
@@ -131,6 +142,7 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 
 	hdr = (struct rchunk_hdr *)buf;
 	len -= sizeof(*hdr);
+	ptr = buf + sizeof(*hdr);
 
 	if ( be32toh(hdr->c_len) > len )
 		goto err_free;
@@ -141,11 +153,10 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 		printf("gzip\n");
 		if ( len < 6 )
 			goto err_free;
-		ptr = buf + 2;
+		ptr += 2;
 		len -= 6;
 		break;
 	case RCHUNK_ZLIB:
-		ptr = buf;
 		break;
 	default:
 		printf("Uknown chunk encoding\n");
