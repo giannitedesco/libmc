@@ -64,7 +64,7 @@ static int chunk_lookup(struct _region *r, uint8_t x, uint8_t z,
 			off_t *off, size_t *len)
 {
 	uint32_t l;
-	if ( x > REGION_X || z > REGION_Z )
+	if ( x >= REGION_X || z >= REGION_Z )
 		return 0;
 
 	l = be32toh(r->locs[x * REGION_X + z]);
