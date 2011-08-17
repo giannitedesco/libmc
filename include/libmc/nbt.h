@@ -54,5 +54,7 @@ struct nbt_tag {
 };
 
 const uint8_t *nbt_decode(const uint8_t *ptr, size_t len, struct nbt_tag *tag);
+int nbt_strcmp(const struct nbt_string *v1, const struct nbt_string *v2);
+int nbt_cstrcmp(const struct nbt_string *v1, const char *str);
 
 #endif /* _NBT_H */

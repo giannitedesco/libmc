@@ -58,8 +58,8 @@ const uint8_t *nbt_decode(const uint8_t *ptr, size_t len, struct nbt_tag *tag)
 	ptr++;
 
 	if ( tag->t_type != NBT_TAG_End ) {
-		tag->t_name.len = *(int16_t *)ptr;
-		tag->t_name.str = ptr + 2;
+		tag->t_name.len = be16toh(*(int16_t *)ptr);
+		tag->t_name.str = (char *)(ptr + 2);
 		ptr += 2 + tag->t_name.len;
 		if ( tag->t_name.len < 0 || ptr > end )
 			return 0;
@@ -69,6 +69,18 @@ const uint8_t *nbt_decode(const uint8_t *ptr, size_t len, struct nbt_tag *tag)
 	}
 
 	switch(tag->t_type) {
+	case NBT_TAG_End:
+		break;
+	case NBT_TAG_Byte:
+	case NBT_TAG_Short:
+	case NBT_TAG_Int:
+	case NBT_TAG_Long:
+	case NBT_TAG_Float:
+	case NBT_TAG_Double:
+	case NBT_TAG_Byte_Array:
+	case NBT_TAG_String:
+	case NBT_TAG_List:
+		return NULL;
 	case NBT_TAG_Compound:
 		tag->t_u.t_compound.ptr = ptr;
 		tag->t_u.t_compound.max_len = end - ptr;
@@ -79,4 +91,33 @@ const uint8_t *nbt_decode(const uint8_t *ptr, size_t len, struct nbt_tag *tag)
 	}
 
 	return ptr;
+}
+
+int nbt_strcmp(const struct nbt_string *v1, const struct nbt_string *v2)
+{
+	size_t min, i;
+	int ret;
+
+	min = (v1->len < v2->len) ? v1->len : v2->len;
+	ret = v1->len - v2->len;
+
+	for(i = 0; i < min; i++) {
+		int ret;
+
+		ret = v1->str[i] - v2->str[i];
+		if ( ret )
+			break;
+	}
+
+	return ret;
+}
+
+int nbt_cstrcmp(const struct nbt_string *v1, const char *str)
+{
+	struct nbt_string v2;
+
+	v2.str = str;
+	v2.len = strlen(str);
+
+	return nbt_strcmp(v1, &v2);
 }

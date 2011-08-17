@@ -11,6 +11,11 @@ struct _chunk {
 	struct nbt_tag root;
 };
 
+static const uint8_t *decode_level(const uint8_t *ptr, const uint8_t *end)
+{
+	return end;
+}
+
 chunk_t chunk_from_bytes(const uint8_t *buf, size_t sz)
 {
 	const uint8_t *ptr, *end;
@@ -34,8 +39,18 @@ chunk_t chunk_from_bytes(const uint8_t *buf, size_t sz)
 	if ( NULL == ptr )
 		goto out_free;
 
+	if ( c->root.t_type != NBT_TAG_Compound )
+		goto out_free;
+
+	if ( nbt_cstrcmp(&c->root.t_name, "Level") )
+		goto out_free;
+
 	printf("decoded chunk '%.*s'\n",
 		c->root.t_name.len, c->root.t_name.str);
+	
+	ptr = decode_level(ptr, end);
+	if ( NULL == ptr )
+		goto out_free;
 
 	goto out;
 
