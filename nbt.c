@@ -48,7 +48,7 @@ const uint8_t *nbt_decode(const uint8_t *ptr, size_t len, struct nbt_tag *tag)
 {
 	const uint8_t *end = ptr + len;
 
-	if ( len < 3 )
+	if ( len < 1 )
 		return NULL;
 
 	tag->t_ptr = ptr;
@@ -58,6 +58,8 @@ const uint8_t *nbt_decode(const uint8_t *ptr, size_t len, struct nbt_tag *tag)
 	ptr++;
 
 	if ( tag->t_type != NBT_TAG_End ) {
+		if ( ptr + 2 > end )
+			return NULL;
 		tag->t_name.len = be16toh(*(int16_t *)ptr);
 		tag->t_name.str = (char *)(ptr + 2);
 		ptr += 2 + tag->t_name.len;
@@ -77,7 +79,16 @@ const uint8_t *nbt_decode(const uint8_t *ptr, size_t len, struct nbt_tag *tag)
 	case NBT_TAG_Long:
 	case NBT_TAG_Float:
 	case NBT_TAG_Double:
+		return NULL;
 	case NBT_TAG_Byte_Array:
+		if ( ptr + 4 > end )
+			return NULL;
+		tag->t_u.t_blob.len = be32toh(*(int32_t *)ptr);
+		tag->t_u.t_blob.array = ptr + 4;
+		ptr += 4 + tag->t_u.t_blob.len;
+		if ( tag->t_u.t_blob.len < 0 || ptr > end )
+			return NULL;
+		break;
 	case NBT_TAG_String:
 	case NBT_TAG_List:
 		return NULL;

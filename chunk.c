@@ -13,6 +13,16 @@ struct _chunk {
 
 static const uint8_t *decode_level(const uint8_t *ptr, const uint8_t *end)
 {
+	struct nbt_tag t;
+
+	do {
+		ptr = nbt_decode(ptr, end - ptr, &t);
+		if ( NULL == ptr )
+			return NULL;
+		printf(" - decoded chunk '%.*s'\n",
+			t.t_name.len, t.t_name.str);
+	}while(ptr < end && t.t_type != NBT_TAG_End);
+
 	return end;
 }
 
