@@ -19,7 +19,7 @@ CFLAGS := -g -pipe -O2 -Wall \
 	$(EXTRA_DEFS) 
 
 MCDUMP_BIN := mcdump
-MCDUMP_LIBS := 
+MCDUMP_LIBS := -lz
 MCDUMP_OBJ = mcdump.o \
 		region.o \
 		chunk.o

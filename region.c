@@ -11,15 +11,20 @@
 
 #include <endian.h>
 
+#include <zlib.h>
+
 #include <libmc/chunk.h>
 #include <libmc/region.h>
 
 /* chunk data stored at 4KB granularity */
-#define INTERNAL_CHUNK_SHIFT 12
+#define INTERNAL_CHUNK_SHIFT 	12
+
+#define RCHUNK_GZIP		1
+#define RCHUNK_ZLIB		2
 
 struct rchunk_hdr {
 	uint32_t c_len;
-	uint32_t c_encoding;
+	uint8_t c_encoding;
 } __attribute__((packed));
 
 struct _region {
@@ -66,19 +71,45 @@ static int chunk_lookup(struct _region *r, uint8_t x, uint8_t z,
 	*off = (l >> 8) << INTERNAL_CHUNK_SHIFT;
 	*len = (l & 0xff) << INTERNAL_CHUNK_SHIFT;
 
+#if 0
 	if ( *off && *len ) {
 		printf("(%d,%d) %zu bytes at %"PRId64"\n",
 			x, z, *len, *off);
 	}
-	
+#endif
+
 	return 1;
+}
+
+static uint8_t *region_decompress(const uint8_t *buf, size_t len, size_t *dlen)
+{
+	uint8_t *d;
+	int ret;
+
+	/* compression ratio of 3 ought to be more than enough */
+	*dlen = len * 3;
+	d = malloc(*dlen);
+	if ( NULL == d )
+		return NULL;
+
+	ret = uncompress(d, dlen, buf, len) == Z_OK;
+	switch(ret) {
+	case Z_OK:
+		return d;
+	case Z_BUF_ERROR:
+		/* gah */
+		printf("UP TEH BUFFERZZ!!\n");
+	default:
+		free(d);
+		return NULL;
+	}
 }
 
 chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 {
 	const struct rchunk_hdr *hdr;
 	off_t off;
-	size_t len;
+	size_t len, dlen;
 	uint8_t *buf, *ptr;
 	ssize_t ret;
 	chunk_t c;
@@ -105,14 +136,15 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 		goto err_free;
 	len = be32toh(hdr->c_len);
 
-	switch(be32toh(hdr->c_encoding)) {
-	case 1:
+	switch(hdr->c_encoding) {
+	case RCHUNK_GZIP:
+		printf("gzip\n");
 		if ( len < 6 )
 			goto err_free;
 		ptr = buf + 2;
 		len -= 6;
 		break;
-	case 2:
+	case RCHUNK_ZLIB:
 		ptr = buf;
 		break;
 	default:
@@ -120,9 +152,13 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 		goto err_free;
 	}
 
-	// zlib decompress (ptr, len) in to new buffer
-	//c = chunk_from_bytes(buf, len);
+	ptr = region_decompress(ptr, len, &dlen);
+	if ( NULL == ptr )
+		goto err_free;
 
+	c = chunk_from_bytes(ptr, dlen);
+
+	free(ptr);
 	free(buf);
 
 	return c;
