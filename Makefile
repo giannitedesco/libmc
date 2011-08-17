@@ -18,14 +18,18 @@ CFLAGS := -g -pipe -O2 -Wall \
 	-Iinclude \
 	$(EXTRA_DEFS) 
 
+LIBMC_SLIB := libmc.a
+LIBMC_OBJ := region.o \
+		chunk.o \
+		nbt.o
+
 MCDUMP_BIN := mcdump
 MCDUMP_LIBS := -lz
-MCDUMP_OBJ = mcdump.o \
-		region.o \
-		chunk.o
+MCDUMP_SLIBS := $(LIBMC_SLIB)
+MCDUMP_OBJ := mcdump.o
 
-ALL_BIN := $(MCDUMP_BIN)
-ALL_OBJ := $(MCDUMP_OBJ)
+ALL_BIN := $(MCDUMP_BIN) $(LIBMC_SLIB)
+ALL_OBJ := $(MCDUMP_OBJ) $(LIBMC_OBJ)
 ALL_DEP := $(patsubst %.o, .%.d, $(ALL_OBJ))
 ALL_TARGETS := $(ALL_BIN)
 
@@ -53,10 +57,13 @@ endif
 		-MT $(patsubst .%.d, %.o, $@) \
 		-c -o $(patsubst .%.d, %.o, $@) $<
 
-$(MCDUMP_BIN): $(MCDUMP_OBJ)
-	@echo " [LINK] $@"
-	@$(CC) $(CFLAGS) -o $@ $(MCDUMP_OBJ) $(MCDUMP_LIBS)
+$(LIBMC_SLIB): $(LIBMC_OBJ)
+	@echo " [SLIB] $@"
+	@$(AR) cr $@ $^
 
+$(MCDUMP_BIN): $(MCDUMP_OBJ) $(MCDUMP_SLIBS)
+	@echo " [LINK] $@"
+	@$(CC) $(CFLAGS) -o $@ $^ $(MCDUMP_LIBS)
 clean:
 	rm -f $(ALL_TARGETS) $(ALL_OBJ) $(ALL_DEP)
 
