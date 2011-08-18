@@ -121,11 +121,13 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 			tag->t_name.len = 0;
 			tag->t_name.str = NULL;
 		}
-
-		//printf("%*c Tag: %.*s\n",
-		//	depth, ' ', tag->t_name.len, tag->t_name.str);
+#if 0
+		printf("%*c Tag: %u: %.*s\n",
+			depth, ' ', tag->t_type,
+			tag->t_name.len, tag->t_name.str);
 	}else{
-		//printf("%*c List item\n", depth, ' ');
+		printf("%*c List item\n", depth, ' ');
+#endif
 	}
 
 
@@ -234,8 +236,13 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 	return ptr;
 }
 
-#if 0
-int nbt_strcmp(const struct nbt_string *v1, const struct nbt_string *v2)
+const char *nbt_str(nbt_str_t str, size_t *sz)
+{
+	*sz = str->len;
+	return str->str;
+}
+
+int nbt_strcmp(nbt_str_t v1, nbt_str_t v2)
 {
 	size_t min, i;
 	int ret;
@@ -244,17 +251,17 @@ int nbt_strcmp(const struct nbt_string *v1, const struct nbt_string *v2)
 	ret = v1->len - v2->len;
 
 	for(i = 0; i < min; i++) {
-		int ret;
+		int r;
 
-		ret = v1->str[i] - v2->str[i];
-		if ( ret )
-			break;
+		r = v1->str[i] - v2->str[i];
+		if ( r )
+			return r;
 	}
 
 	return ret;
 }
 
-int nbt_cstrcmp(const struct nbt_string *v1, const char *str)
+int nbt_cstrcmp(nbt_str_t v1, const char *str)
 {
 	struct nbt_string v2;
 
@@ -263,7 +270,75 @@ int nbt_cstrcmp(const struct nbt_string *v1, const char *str)
 
 	return nbt_strcmp(v1, &v2);
 }
-#endif
+
+nbt_tag_t nbt_root_tag(nbt_t nbt)
+{
+	return &nbt->root;
+}
+
+nbt_tag_t nbt_compound_get_child(nbt_tag_t t, const char *name)
+{
+	struct nbt_tag *c;
+
+	if (NULL == t || t->t_type != NBT_TAG_Compound)
+		return NULL;
+
+	list_for_each_entry(c, &t->t_u.t_compound.list, t_list) {
+		if ( !nbt_cstrcmp(&c->t_name, name) ) {
+			return c;
+		}
+	}
+
+	return NULL;
+}
+
+int nbt_byte_get(nbt_tag_t t, uint8_t *val)
+{
+	if (NULL == t || t->t_type != NBT_TAG_Byte)
+		return 0;
+	*val = t->t_u.t_byte;
+	return 1;
+}
+
+int nbt_short_get(nbt_tag_t t, int16_t *val)
+{
+	if (NULL == t || t->t_type != NBT_TAG_Short)
+		return 0;
+	*val = t->t_u.t_short;
+	return 1;
+}
+
+int nbt_int_get(nbt_tag_t t, int32_t *val)
+{
+	if (NULL == t || t->t_type != NBT_TAG_Int)
+		return 0;
+	*val = t->t_u.t_int;
+	return 1;
+}
+
+int nbt_long_get(nbt_tag_t t, int64_t *val)
+{
+	if (NULL == t || t->t_type != NBT_TAG_Long)
+		return 0;
+	*val = t->t_u.t_long;
+	return 1;
+}
+
+int nbt_buffer_get(nbt_tag_t t, const uint8_t **bytes, size_t *sz)
+{
+	if (NULL == t || t->t_type != NBT_TAG_Byte_Array)
+		return 0;
+	*bytes = t->t_u.t_blob.array;
+	*sz = (size_t)t->t_u.t_blob.len;
+	return 1;
+}
+
+nbt_str_t nbt_tag_name(nbt_tag_t t)
+{
+	if ( NULL == t )
+		return NULL;
+	return &t->t_name;
+}
 
 nbt_t nbt_decode(const uint8_t *buf, size_t len)
 {
