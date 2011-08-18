@@ -21,7 +21,8 @@ CFLAGS := -g -pipe -O2 -Wall \
 LIBMC_SLIB := libmc.a
 LIBMC_OBJ := region.o \
 		chunk.o \
-		nbt.o
+		nbt.o \
+		hgang.o
 
 MCDUMP_BIN := mcdump
 MCDUMP_LIBS := -lz

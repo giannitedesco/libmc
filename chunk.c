@@ -8,58 +8,20 @@
 #include <libmc/nbt.h>
 
 struct _chunk {
-	struct nbt_tag root;
+	int foo;
 };
-
-static const uint8_t *decode_level(const uint8_t *ptr, const uint8_t *end)
-{
-	struct nbt_tag t;
-
-	do {
-		ptr = nbt_decode(ptr, end - ptr, &t);
-		if ( NULL == ptr )
-			return NULL;
-		printf(" - decoded chunk '%.*s'\n",
-			t.t_name.len, t.t_name.str);
-	}while(ptr < end && t.t_type != NBT_TAG_End);
-
-	return end;
-}
 
 chunk_t chunk_from_bytes(const uint8_t *buf, size_t sz)
 {
-	const uint8_t *ptr, *end;
 	struct _chunk *c;
-	struct nbt_tag t;
+	nbt_t n;
 
 	c = calloc(1, sizeof(*c));
 	if ( NULL == c )
 		goto out;
 
-	end = buf + sz;
-
-	ptr = nbt_decode(buf, sz, &t);
-	if ( NULL == ptr )
-		goto out_free;
-
-	if ( t.t_type != NBT_TAG_Compound )
-		goto out_free;
-
-	ptr = nbt_decode(ptr, end - ptr, &c->root);
-	if ( NULL == ptr )
-		goto out_free;
-
-	if ( c->root.t_type != NBT_TAG_Compound )
-		goto out_free;
-
-	if ( nbt_cstrcmp(&c->root.t_name, "Level") )
-		goto out_free;
-
-	printf("decoded chunk '%.*s'\n",
-		c->root.t_name.len, c->root.t_name.str);
-	
-	ptr = decode_level(ptr, end);
-	if ( NULL == ptr )
+	n = nbt_decode(buf, sz);
+	if ( NULL == n )
 		goto out_free;
 
 	goto out;
