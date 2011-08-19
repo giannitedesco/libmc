@@ -19,7 +19,8 @@ CFLAGS := -g -pipe -O2 -Wall \
 	$(EXTRA_DEFS) 
 
 LIBMC_SLIB := libmc.a
-LIBMC_OBJ := region.o \
+LIBMC_OBJ := dim.o \
+		region.o \
 		chunk.o \
 		nbt.o \
 		hgang.o

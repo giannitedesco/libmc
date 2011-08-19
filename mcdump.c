@@ -8,9 +8,11 @@
 
 #include <libmc/chunk.h>
 #include <libmc/region.h>
+#include <libmc/dim.h>
 
 int main(int argc, char **argv)
 {
+	dim_t d;
 	region_t r;
 	uint8_t x, z;
 
@@ -20,12 +22,18 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	r = region_open(argv[1]);
+	d = dim_open(argv[1]);
+	if ( NULL == d )
+		return EXIT_FAILURE;
+
+	printf("Opened dimension: %s\n", argv[1]);
+
+	//r = region_open(argv[1]);
+	r = dim_get_region(d, 0, 0);
 	if ( NULL == r )
 		return EXIT_FAILURE;
 
-	printf("Opened region: %s\n", argv[1]);
-
+	printf("Got region 0,0\n");
 	for(x = 0; x < REGION_X; x++) {
 		for(z = 0; z < REGION_Z; z++) {
 			chunk_t c;
@@ -34,7 +42,7 @@ int main(int argc, char **argv)
 			if ( NULL == c )
 				continue;
 
-			printf("Got region x=%u, z=%u\n", x, z);
+			printf("Got chunk x=%u, z=%u\n", x, z);
 			chunk_free(c);
 		}
 	}
