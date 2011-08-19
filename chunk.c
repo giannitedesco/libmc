@@ -9,12 +9,14 @@
 
 struct _chunk {
 	nbt_t nbt;
+	uint8_t *buf;
+	size_t sz;
 	int32_t xpos, zpos;
 	uint8_t *blocks;
 	uint8_t *data;
 };
 
-chunk_t chunk_from_bytes(const uint8_t *buf, size_t sz)
+chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 {
 	struct _chunk *c;
 	nbt_tag_t root, level;
@@ -23,6 +25,9 @@ chunk_t chunk_from_bytes(const uint8_t *buf, size_t sz)
 	c = calloc(1, sizeof(*c));
 	if ( NULL == c )
 		goto out;
+
+	c->buf = buf;
+	c->sz = sz;
 
 	c->nbt = nbt_decode(buf, sz);
 	if ( NULL == c->nbt )
@@ -42,13 +47,13 @@ chunk_t chunk_from_bytes(const uint8_t *buf, size_t sz)
 		goto out_free;
 
 	if ( !nbt_buffer_get(nbt_compound_get_child(level, "Blocks"),
-				&c->blocks, &blen) )
+				(const uint8_t **)&c->blocks, &blen) )
 		goto out_free;
 	if ( blen != CHUNK_X * CHUNK_Y * CHUNK_Z )
 		goto out_free;
 
 	if ( !nbt_buffer_get(nbt_compound_get_child(level, "Data"),
-				&c->blocks, &blen) )
+				(const uint8_t **)&c->blocks, &blen) )
 		goto out_free;
 	if ( blen != (CHUNK_X * CHUNK_Y * CHUNK_Z) / 2)
 		goto out_free;
@@ -66,6 +71,7 @@ void chunk_free(chunk_t c)
 {
 	if ( c ) {
 		nbt_free(c->nbt);
+		free(c->buf);
 		free(c);
 	}
 }

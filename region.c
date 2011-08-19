@@ -167,9 +167,9 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 	if ( NULL == ptr )
 		goto err_free;
 
+	/* chunk now owns ptr */
 	c = chunk_from_bytes(ptr, dlen);
 
-	free(ptr);
 	free(buf);
 
 	return c;
