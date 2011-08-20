@@ -3,8 +3,8 @@
  *
  * Load each dimesion. Dimesions contain multiple regions.
 */
-#include <stdint.h>
 #define _GNU_SOURCE
+#include <stdint.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>

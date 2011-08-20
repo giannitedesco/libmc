@@ -91,10 +91,72 @@ static void hex_dumpf(FILE *f, const uint8_t *tmp, size_t len, size_t llen)
 }
 #endif
 
+static void do_dump(struct nbt_tag *tag, unsigned int depth)
+{
+	static const char * const tstr[] = {
+		[NBT_TAG_End] = "End",
+		[NBT_TAG_Byte] = "Byte",
+		[NBT_TAG_Short] = "Short",
+		[NBT_TAG_Int] = "Int",
+		[NBT_TAG_Long] = "Long",
+		[NBT_TAG_Float] = "Float",
+		[NBT_TAG_Double] = "Double",
+		[NBT_TAG_Byte_Array] = "ByteArray",
+		[NBT_TAG_String] = "String",
+		[NBT_TAG_List] = "List",
+		[NBT_TAG_Compound] = "Compound",
+	};
+	struct nbt_tag *c;
+	int32_t i;
+
+	printf("%*c Tag_%s: %s",
+		2 * depth, ' ', tstr[tag->t_type], tag->t_name);
+
+	switch(tag->t_type) {
+	case NBT_TAG_Byte_Array:
+		printf(" == %d bytes\n", tag->t_u.t_blob.len);
+		break;
+	case NBT_TAG_Byte:
+		printf(" == %d\n", tag->t_u.t_byte);
+		break;
+	case NBT_TAG_Short:
+		printf(" == %d\n", tag->t_u.t_short);
+		break;
+	case NBT_TAG_Int:
+		printf(" == %"PRId32"\n", tag->t_u.t_int);
+		break;
+	case NBT_TAG_Long:
+		printf(" == %"PRId64"\n", tag->t_u.t_long);
+		break;
+	case NBT_TAG_String:
+		printf(" == '%s'\n", tag->t_u.t_str);
+		break;
+	case NBT_TAG_List:
+		printf(" type = %s {\n", tstr[tag->t_u.t_list.type]);
+		for(i = 0; i < tag->t_u.t_list.len; i++)
+			do_dump(tag->t_u.t_list.array[i], depth + 1);
+		printf("%*c }\n", depth * 2, ' ');
+		break;
+	case NBT_TAG_Compound:
+		printf(" {\n");
+		list_for_each_entry(c, &tag->t_u.t_compound, t_list)
+			do_dump(c, depth + 1);
+		printf("%*c }\n", depth * 2, ' ');
+		break;
+	default:
+		printf("\n");
+		break;
+	}
+}
+
+void nbt_dump(nbt_t nbt)
+{
+	do_dump(&nbt->root, 0);
+}
+
 static const uint8_t *decode_tag(struct _nbt *nbt,
 					const uint8_t *ptr, size_t len,
-					struct nbt_tag *tag, int type,
-					unsigned int depth)
+					struct nbt_tag *tag, int type)
 {
 	const uint8_t *end = ptr + len, *tmp;
 	const uint8_t *aptr;
@@ -123,12 +185,6 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 		}else{
 			tag->t_name = NULL;
 		}
-#if 0
-		printf("%*c Tag: %u: %s\n",
-			depth, ' ', tag->t_type, tag->t_name);
-	}else{
-		printf("%*c List item\n", depth, ' ');
-#endif
 	}
 
 	switch(tag->t_type) {
@@ -220,8 +276,7 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 				return NULL;
 			tag->t_u.t_list.array[cnt] = c;
 			c->t_type = tag->t_u.t_list.type;
-			tmp = decode_tag(nbt, ptr, end - ptr, c, TAG_ANON,
-					depth + 1);
+			tmp = decode_tag(nbt, ptr, end - ptr, c, TAG_ANON);
 			if ( NULL == tmp )
 				return NULL;
 			ptr = tmp;
@@ -229,17 +284,21 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 		break;
 	case NBT_TAG_Compound:
 		INIT_LIST_HEAD(&tag->t_u.t_compound);
-		do {
+		while(ptr < end) {
 			c = hgang_alloc0(nbt->nodes);
 			if ( NULL == c )
 				return NULL;
-			tmp = decode_tag(nbt, ptr, end - ptr, c, TAG_NAMED,
-					depth + 1);
+			tmp = decode_tag(nbt, ptr, end - ptr, c, TAG_NAMED);
 			if ( NULL == tmp )
 				return NULL;
 			ptr = tmp;
-			list_add_tail(&c->t_list, &tag->t_u.t_compound);
-		}while(c->t_type != NBT_TAG_End && ptr < end);
+			if ( c->t_type == NBT_TAG_End ) {
+				hgang_return(nbt->nodes, c);
+				break;
+			}else{
+				list_add_tail(&c->t_list, &tag->t_u.t_compound);
+			}
+		}
 		break;
 	default:
 		printf("nbt: uknown type %d\n", tag->t_type);
@@ -384,7 +443,7 @@ nbt_t nbt_decode(const uint8_t *buf, size_t len)
 	if ( NULL == nbt->nodes )
 		goto out_free;
 
-	ptr = decode_tag(nbt, buf, len, &nbt->root, TAG_NAMED, 1);
+	ptr = decode_tag(nbt, buf, len, &nbt->root, TAG_NAMED);
 	if ( NULL == ptr )
 		goto out_free_all;
 

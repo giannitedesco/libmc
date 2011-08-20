@@ -34,4 +34,6 @@ int nbt_list_size(nbt_tag_t t);
 
 nbt_tag_t nbt_compound_get_child(nbt_tag_t t, const char *name);
 
+void nbt_dump(nbt_t nbt);
+
 #endif /* _NBT_H */

@@ -33,6 +33,8 @@ chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 	if ( NULL == c->nbt )
 		goto out_free;
 
+	//nbt_dump(c->nbt);
+
 	root = nbt_root_tag(c->nbt);
 	if ( NULL == root )
 		goto out_free;
