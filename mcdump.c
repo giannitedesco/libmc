@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	region_close(r);
+	dim_close(d);
 
 	return EXIT_SUCCESS;
 }
