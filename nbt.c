@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
@@ -12,29 +13,20 @@
 #define TAG_NAMED	0
 #define TAG_ANON	1
 
-struct nbt_string {
-	int len;
-	const char *str;
-};
-
 struct nbt_byte_array {
 	int32_t len;
-	const uint8_t *array;
+	uint8_t *array;
 };
 
 struct nbt_list {
-	uint8_t type;
+	struct nbt_tag **array;
 	int32_t len;
-	struct list_head list;
-};
-
-struct nbt_compound {
-	struct list_head list;
+	uint8_t type;
 };
 
 struct nbt_tag {
-	struct nbt_string t_name;
-	uint8_t t_type;
+	struct list_head t_list;
+	char *t_name;
 	union {
 		uint8_t t_byte;
 		int16_t t_short;
@@ -43,11 +35,11 @@ struct nbt_tag {
 		float t_float;
 		double t_double;
 		struct nbt_byte_array t_blob;
-		struct nbt_string t_str;
+		char *t_str;
 		struct nbt_list t_list;
-		struct nbt_compound t_compound;
+		struct list_head t_compound;
 	}t_u;
-	struct list_head t_list;
+	uint8_t t_type;
 };
 
 struct _nbt {
@@ -99,8 +91,11 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 					unsigned int depth)
 {
 	const uint8_t *end = ptr + len, *tmp;
+	const uint8_t *aptr;
 	struct nbt_tag *c;
-	int32_t cnt;
+	int32_t cnt, alen;
+	int16_t slen;
+	char *str;
 
 	if ( type == TAG_NAMED ) {
 		if ( len < 1 )
@@ -112,24 +107,23 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 		if ( tag->t_type != NBT_TAG_End ) {
 			if ( ptr + 2 > end )
 				return NULL;
-			tag->t_name.len = be16toh(*(int16_t *)ptr);
-			tag->t_name.str = (char *)(ptr + 2);
-			ptr += 2 + tag->t_name.len;
-			if ( tag->t_name.len < 0 || ptr > end )
+			slen = be16toh(*(int16_t *)ptr);
+			str = (char *)(ptr + 2);
+			ptr += 2 + slen;
+			if ( slen < 0 || ptr > end )
+				return NULL;
+			if ( asprintf(&tag->t_name, "%.*s", slen, str) < 0 )
 				return NULL;
 		}else{
-			tag->t_name.len = 0;
-			tag->t_name.str = NULL;
+			tag->t_name = NULL;
 		}
 #if 0
-		printf("%*c Tag: %u: %.*s\n",
-			depth, ' ', tag->t_type,
-			tag->t_name.len, tag->t_name.str);
+		printf("%*c Tag: %u: %s\n",
+			depth, ' ', tag->t_type, tag->t_name);
 	}else{
 		printf("%*c List item\n", depth, ' ');
 #endif
 	}
-
 
 	switch(tag->t_type) {
 	case NBT_TAG_End:
@@ -171,51 +165,64 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 		ptr += sizeof(tag->t_u.t_double);
 		break;
 	case NBT_TAG_Byte_Array:
-		if ( ptr + 4 > end )
+		if ( ptr + sizeof(alen) > end )
 			return NULL;
-		tag->t_u.t_blob.len = be32toh(*(int32_t *)ptr);
-		tag->t_u.t_blob.array = ptr + 4;
-		ptr += 4 + tag->t_u.t_blob.len;
-		if ( tag->t_u.t_blob.len < 0 || ptr > end )
+		alen = be32toh(*(int32_t *)ptr);
+		aptr =  ptr + sizeof(alen);
+		ptr += sizeof(alen) + alen;
+		if ( alen < 0 || ptr > end )
 			return NULL;
+		tag->t_u.t_blob.array = malloc(alen);
+		if ( NULL == tag->t_u.t_blob.array )
+			return NULL;
+		tag->t_u.t_blob.len = alen;
+		memcpy(tag->t_u.t_blob.array, aptr, alen);
 		break;
 	case NBT_TAG_String:
 		if ( ptr + sizeof(tag->t_u.t_short) > end )
 			return NULL;
-		tag->t_u.t_str.len = be16toh(*(int16_t *)ptr);
-		ptr += sizeof(tag->t_u.t_short);
-		tag->t_u.t_str.str = (char *)ptr;
-		ptr += tag->t_u.t_str.len;
+		slen = be16toh(*(int16_t *)ptr);
+		str = (char *)ptr;
+		ptr += sizeof(tag->t_u.t_short) + slen;
+		if ( slen < 0 || ptr > end )
+			return NULL;
+		if ( asprintf(&tag->t_u.t_str, "%.*s", slen, str) < 0 )
+			return NULL;
 		break;
 	case NBT_TAG_List:
-		if ( ptr + 5 > end )
+		if ( ptr + sizeof(uint8_t) + sizeof(int32_t) > end )
 			return NULL;
+
 		tag->t_u.t_list.type = *ptr;
 		ptr++;
-		tag->t_u.t_list.len = be32toh(*(int32_t *)ptr);
-		ptr += 4;
-
 		if ( tag->t_u.t_list.type == NBT_TAG_End ) {
 			printf("Bad list format\n");
 			return NULL;
 		}
 
-		INIT_LIST_HEAD(&tag->t_u.t_list.list);
+		tag->t_u.t_list.len = be32toh(*(int32_t *)ptr);
+		ptr += 4;
+
+		tag->t_u.t_list.array = calloc(tag->t_u.t_list.len,
+						sizeof(*tag->t_u.t_list.array));
+		if ( NULL == tag->t_u.t_list.array )
+			return NULL;
+
 		for(cnt = 0; cnt < tag->t_u.t_list.len; cnt++) {
 			c = hgang_alloc0(nbt->nodes);
 			if ( NULL == c )
 				return NULL;
+			tag->t_u.t_list.array[cnt] = c;
 			c->t_type = tag->t_u.t_list.type;
 			tmp = decode_tag(nbt, ptr, end - ptr, c, TAG_ANON,
 					depth + 1);
 			if ( NULL == tmp )
 				return NULL;
 			ptr = tmp;
-			list_add_tail(&c->t_list, &tag->t_u.t_list.list);
 		}
 		break;
 	case NBT_TAG_Compound:
-		INIT_LIST_HEAD(&tag->t_u.t_compound.list);
+		INIT_LIST_HEAD(&tag->t_u.t_compound);
 		do {
 			c = hgang_alloc0(nbt->nodes);
 			if ( NULL == c )
@@ -225,7 +232,7 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 			if ( NULL == tmp )
 				return NULL;
 			ptr = tmp;
-			list_add_tail(&c->t_list, &tag->t_u.t_compound.list);
+			list_add_tail(&c->t_list, &tag->t_u.t_compound);
 		}while(c->t_type != NBT_TAG_End && ptr < end);
 		break;
 	default:
@@ -234,41 +241,6 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 	}
 
 	return ptr;
-}
-
-const char *nbt_str(nbt_str_t str, size_t *sz)
-{
-	*sz = str->len;
-	return str->str;
-}
-
-int nbt_strcmp(nbt_str_t v1, nbt_str_t v2)
-{
-	size_t min, i;
-	int ret;
-
-	min = (v1->len < v2->len) ? v1->len : v2->len;
-	ret = v1->len - v2->len;
-
-	for(i = 0; i < min; i++) {
-		int r;
-
-		r = v1->str[i] - v2->str[i];
-		if ( r )
-			return r;
-	}
-
-	return ret;
-}
-
-int nbt_cstrcmp(nbt_str_t v1, const char *str)
-{
-	struct nbt_string v2;
-
-	v2.str = str;
-	v2.len = strlen(str);
-
-	return nbt_strcmp(v1, &v2);
 }
 
 nbt_tag_t nbt_root_tag(nbt_t nbt)
@@ -283,8 +255,8 @@ nbt_tag_t nbt_compound_get_child(nbt_tag_t t, const char *name)
 	if (NULL == t || t->t_type != NBT_TAG_Compound)
 		return NULL;
 
-	list_for_each_entry(c, &t->t_u.t_compound.list, t_list) {
-		if ( !nbt_cstrcmp(&c->t_name, name) ) {
+	list_for_each_entry(c, &t->t_u.t_compound, t_list) {
+		if ( !strcmp(c->t_name, name) ) {
 			return c;
 		}
 	}
@@ -333,11 +305,64 @@ int nbt_buffer_get(nbt_tag_t t, const uint8_t **bytes, size_t *sz)
 	return 1;
 }
 
-nbt_str_t nbt_tag_name(nbt_tag_t t)
+int nbt_string_get(nbt_tag_t t, char **val)
+{
+	if (NULL == t || t->t_type != NBT_TAG_String)
+		return 0;
+	*val = t->t_u.t_str;
+	return 1;
+}
+
+int nbt_list_get(nbt_tag_t t, unsigned idx, nbt_tag_t *val)
+{
+	if (NULL == t || t->t_type != NBT_TAG_String)
+		return 0;
+	if ( idx >= (unsigned)t->t_u.t_list.len )
+		return 0;
+	*val = t->t_u.t_list.array[idx];
+	return 1;
+}
+
+int nbt_list_size(nbt_tag_t t)
+{
+	if (NULL == t || t->t_type != NBT_TAG_String)
+		return -1;
+	return t->t_u.t_list.len;
+}
+
+char *nbt_tag_name(nbt_tag_t t)
 {
 	if ( NULL == t )
 		return NULL;
-	return &t->t_name;
+	return t->t_name;
+}
+
+static void free_nbt_data(struct nbt_tag *tag)
+{
+	struct nbt_tag *c;
+	int32_t i;
+
+	switch(tag->t_type) {
+	case NBT_TAG_Byte_Array:
+		free(tag->t_u.t_blob.array);
+		break;
+	case NBT_TAG_String:
+		free(tag->t_u.t_str);
+		break;
+	case NBT_TAG_List:
+		for(i = 0; i < tag->t_u.t_list.len; i++)
+			free_nbt_data(tag->t_u.t_list.array[i]);
+		free(tag->t_u.t_list.array);
+		break;
+	case NBT_TAG_Compound:
+		list_for_each_entry(c, &tag->t_u.t_compound, t_list)
+			free_nbt_data(c);
+		break;
+	default:
+		break;
+	}
+
+	free(tag->t_name);
 }
 
 nbt_t nbt_decode(const uint8_t *buf, size_t len)
@@ -360,6 +385,7 @@ nbt_t nbt_decode(const uint8_t *buf, size_t len)
 	goto out;
 
 out_free_all:
+	free_nbt_data(&nbt->root);
 	hgang_free(nbt->nodes);
 out_free:
 	free(nbt);
@@ -371,6 +397,7 @@ out:
 void nbt_free(nbt_t nbt)
 {
 	if ( nbt ) {
+		free_nbt_data(&nbt->root);
 		hgang_free(nbt->nodes);
 		free(nbt);
 	}

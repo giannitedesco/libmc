@@ -170,6 +170,7 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 	/* chunk now owns ptr */
 	c = chunk_from_bytes(ptr, dlen);
 
+	free(ptr);
 	free(buf);
 
 	return c;

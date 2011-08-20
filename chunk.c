@@ -9,8 +9,6 @@
 
 struct _chunk {
 	nbt_t nbt;
-	uint8_t *buf;
-	size_t sz;
 	int32_t xpos, zpos;
 	uint8_t *blocks;
 	uint8_t *data;
@@ -25,9 +23,6 @@ chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 	c = calloc(1, sizeof(*c));
 	if ( NULL == c )
 		goto out;
-
-	c->buf = buf;
-	c->sz = sz;
 
 	c->nbt = nbt_decode(buf, sz);
 	if ( NULL == c->nbt )
@@ -71,7 +66,6 @@ void chunk_free(chunk_t c)
 {
 	if ( c ) {
 		nbt_free(c->nbt);
-		free(c->buf);
 		free(c);
 	}
 }
