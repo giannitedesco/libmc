@@ -99,34 +99,27 @@ static uint8_t *region_decompress(const uint8_t *buf, size_t len, size_t *dlen)
 	 * air (top half will all be air) end plenty contig runs of
 	 * stone, dirt or sand.
 	 */
-	*dlen = len * 48;
+	for(*dlen = len * 48; ; *dlen *= 2) {
+		new = realloc(d, *dlen);
+		if ( NULL == new ) {
+			free(d);
+			return NULL;
+		}
 
-again:
-	new = realloc(d, *dlen);
-	if ( NULL == new ) {
-		free(d);
-		return NULL;
-	}
-
-	d = new;
-
-	ret = uncompress(d, dlen, buf, len);
-	switch(ret) {
-	case Z_OK:
-		break;
-	case Z_BUF_ERROR:
-		*dlen *= 2;
-		goto again;
-	default:
-		free(d);
-		return NULL;
-	}
-
-	new = realloc(d, *dlen);
-	if ( new )
 		d = new;
 
-	return d;
+		ret = uncompress(d, dlen, buf, len);
+		switch(ret) {
+		case Z_OK:
+			return d;
+		case Z_BUF_ERROR:
+			*dlen *= 2;
+			continue;
+		default:
+			free(d);
+			return NULL;
+		}
+	}
 }
 
 chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
