@@ -128,11 +128,19 @@ static void do_dump(struct nbt_tag *tag, unsigned int depth)
 	case NBT_TAG_Long:
 		printf(" == %"PRId64"\n", tag->t_u.t_long);
 		break;
+	case NBT_TAG_Float:
+		printf(" == %f\n", tag->t_u.t_float);
+		break;
+	case NBT_TAG_Double:
+		printf(" == %F\n", tag->t_u.t_double);
+		break;
 	case NBT_TAG_String:
 		printf(" == '%s'\n", tag->t_u.t_str);
 		break;
 	case NBT_TAG_List:
-		printf(" type = %s {\n", tstr[tag->t_u.t_list.type]);
+		printf(" type = %s [%d] = {\n",
+			tstr[tag->t_u.t_list.type],
+			tag->t_u.t_list.len);
 		for(i = 0; i < tag->t_u.t_list.len; i++)
 			do_dump(tag->t_u.t_list.array[i], depth + 1);
 		printf("%*c }\n", depth * 2, ' ');
