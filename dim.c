@@ -1,3 +1,9 @@
+/* Copyright (c) Gianni Tedesco 2011
+ * Author: Gianni Tedesco (gianni at scaramanga dot co dot uk)
+ *
+ * Load each dimesion. Dimesions contain multiple regions.
+*/
+#include <stdint.h>
 #define _GNU_SOURCE
 #include <stdint.h>
 #include <inttypes.h>

@@ -1,3 +1,9 @@
+/* Copyright (c) Gianni Tedesco 2011
+ * Author: Gianni Tedesco (gianni at scaramanga dot co dot uk)
+ *
+ * Load nbt tag files. This is a TLV format except without the lengths. So
+ * we have to load all the data in one shot.
+*/
 #define _GNU_SOURCE
 #include <stdint.h>
 #include <inttypes.h>

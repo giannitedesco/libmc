@@ -1,3 +1,7 @@
+/* Copyright (c) Gianni Tedesco 2011
+ * Author: Gianni Tedesco (gianni at scaramanga dot co dot uk)
+*/
+#include <stdint.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>

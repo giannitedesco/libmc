@@ -1,3 +1,8 @@
+/* Copyright (c) Gianni Tedesco 2011
+ * Author: Gianni Tedesco (gianni at scaramanga dot co dot uk)
+ *
+ * Load each chunk. Chunks contain the actual level data encoded in NBT format
+*/
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>

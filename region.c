@@ -1,3 +1,10 @@
+/* Copyright (c) Gianni Tedesco 2011
+ * Author: Gianni Tedesco (gianni at scaramanga dot co dot uk)
+ *
+ * Load region files. Regions contain chunks. These exist because windows
+ * can't handle lots of separate small chunk files so it's really kind of
+ * like an archive format for chunks.
+*/
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
