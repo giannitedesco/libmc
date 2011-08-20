@@ -252,7 +252,7 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 		if ( ptr + sizeof(tag->t_u.t_short) > end )
 			return NULL;
 		slen = be16toh(*(int16_t *)ptr);
-		str = (char *)ptr;
+		str = (char *)ptr + 2;
 		ptr += sizeof(tag->t_u.t_short) + slen;
 		if ( slen < 0 || ptr > end )
 			return NULL;
