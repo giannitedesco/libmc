@@ -86,7 +86,13 @@ static uint8_t *region_decompress(const uint8_t *buf, size_t len, size_t *dlen)
 	uint8_t *d = NULL, *new;
 	int ret;
 
-	*dlen = len * 32;
+	/* Nice compression ratio, shame zlib is so fucking slow and
+	 * we don't know the size up-front. RLE would be far better --
+	 * the reason the ratio's are so good is lots of contiguous
+	 * air (top half will all be air) end plenty contig runs of
+	 * stone, dirt or sand.
+	 */
+	*dlen = len * 48;
 
 again:
 	new = realloc(d, *dlen);
