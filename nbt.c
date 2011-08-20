@@ -321,7 +321,7 @@ int nbt_string_get(nbt_tag_t t, char **val)
 
 int nbt_list_get(nbt_tag_t t, unsigned idx, nbt_tag_t *val)
 {
-	if (NULL == t || t->t_type != NBT_TAG_String)
+	if (NULL == t || t->t_type != NBT_TAG_List)
 		return 0;
 	if ( idx >= (unsigned)t->t_u.t_list.len )
 		return 0;
@@ -331,7 +331,7 @@ int nbt_list_get(nbt_tag_t t, unsigned idx, nbt_tag_t *val)
 
 int nbt_list_size(nbt_tag_t t)
 {
-	if (NULL == t || t->t_type != NBT_TAG_String)
+	if (NULL == t || t->t_type != NBT_TAG_List)
 		return -1;
 	return t->t_u.t_list.len;
 }
