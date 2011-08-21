@@ -51,11 +51,12 @@ int main(int argc, char **argv)
 			if ( NULL == c )
 				continue;
 
-			printf("Got chunk x=%u, z=%u\n", x, z);
+			//printf("Got chunk x=%u, z=%u\n", x, z);
 			chunk_put(c);
 		}
 	}
 
+	region_put(r);
 	world_close(w);
 
 	return EXIT_SUCCESS;

@@ -68,8 +68,8 @@ int main(int argc, char **argv)
 
 	printf("%s saved\n", argv[2]);
 
-	region_close(src);
-	region_close(dst);
+	region_put(src);
+	region_put(dst);
 	printf("Done.\n");
 	return EXIT_SUCCESS;
 }

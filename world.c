@@ -63,6 +63,7 @@ static int gunzip(const char *path, uint8_t **begin, size_t *osz)
 
 	gz = gzdopen(fd, "r");
 	ret = gzread(gz, buf, dlen);
+	gzclose(gz);
 	if ( ret < 0 ) {
 		free(buf);
 		goto out_close;

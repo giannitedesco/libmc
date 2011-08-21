@@ -41,6 +41,7 @@ struct rchunk_hdr {
 
 struct _region {
 	char *path;
+	unsigned int ref;
 	int fd;
 	uint32_t locs[REGION_X * REGION_Z];
 	uint32_t ts[REGION_X * REGION_Z];
@@ -72,6 +73,7 @@ region_t region_open(const char *fn)
 	ret = pread(r->fd, r->ts, sizeof(r->ts), INTERNAL_CHUNK_SIZE);
 	if ( ret < 0 || (size_t)ret < sizeof(r->ts) )
 		goto out_close;
+	r->ref = 1;
 	goto out;
 
 out_close:
@@ -97,6 +99,7 @@ region_t region_new(const char *fn)
 		goto out_free;
 
 	r->fd = -1;
+	r->ref = 1;
 	goto out;
 
 out_free:
@@ -384,7 +387,7 @@ out:
 	return rc;
 }
 
-void region_close(region_t r)
+static void region_close(region_t r)
 {
 	if ( r ) {
 		free(r->path);
@@ -392,4 +395,16 @@ void region_close(region_t r)
 			close(r->fd);
 		free(r);
 	}
+}
+
+void region_put(region_t r)
+{
+	if ( 0 == --r->ref )
+		region_close(r);
+}
+
+region_t region_get(region_t r)
+{
+	r->ref++;
+	return r;
 }

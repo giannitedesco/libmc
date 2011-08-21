@@ -78,7 +78,7 @@ static int add_region(struct _dim *d, int x, int z)
 	return 1;
 
 err_close:
-	region_close(r);
+	region_put(r);
 err_free:
 	free(fn);
 err:
@@ -130,7 +130,7 @@ region_t dim_get_region(dim_t d, int x, int z)
 
 	for(i = 0; i < d->num_reg; i++) {
 		if ( d->reg[i].x == x && d->reg[i].z == z )
-			return d->reg[i].reg;
+			return region_get(d->reg[i].reg);
 	}
 	return NULL;
 }
@@ -140,7 +140,7 @@ void dim_close(dim_t d)
 	if ( d ) {
 		unsigned int i;
 		for(i = 0; i < d->num_reg; i++)
-			region_close(d->reg[i].reg);
+			region_put(d->reg[i].reg);
 		free(d->reg);
 		free(d->path);
 		free(d);

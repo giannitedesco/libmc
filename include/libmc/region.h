@@ -23,6 +23,7 @@ uint32_t region_get_timestamp(region_t r, uint8_t x, uint8_t z);
 /* dirty chunks reference counts are dropped */
 int region_save(region_t r);
 
-void region_close(region_t r);
+region_t region_get(region_t r);
+void region_put(region_t r);
 
 #endif /* _REGION_H */
