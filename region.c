@@ -43,6 +43,7 @@ struct _region {
 	char *path;
 	int fd;
 	uint32_t locs[REGION_X * REGION_Z];
+	uint32_t ts[REGION_X * REGION_Z];
 	chunk_t chunks[REGION_X * REGION_Z];
 	uint8_t dirty;
 };
@@ -68,6 +69,9 @@ region_t region_open(const char *fn)
 	if ( ret < 0 || (size_t)ret < sizeof(r->locs) )
 		goto out_close;
 
+	ret = pread(r->fd, r->ts, sizeof(r->ts), INTERNAL_CHUNK_SIZE);
+	if ( ret < 0 || (size_t)ret < sizeof(r->ts) )
+		goto out_close;
 	goto out;
 
 out_close:
@@ -187,6 +191,20 @@ static int get_chunk(struct _region *r, uint8_t x, uint8_t z,
 
 	*sz = len;
 	return 1;
+}
+
+uint32_t region_get_timestamp(region_t r, uint8_t x, uint8_t z)
+{
+	if ( x >= REGION_X || z >= REGION_Z )
+		return 0;
+	return be32toh(r->ts[x * REGION_X + z]);
+}
+
+void region_set_timestamp(region_t r, uint8_t x, uint8_t z, uint32_t ts)
+{
+	if ( x >= REGION_X || z >= REGION_Z )
+		return;
+	r->ts[x * REGION_X + z] = htobe32(ts);
 }
 
 chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
@@ -311,6 +329,8 @@ int region_save(region_t r)
 					(CSIZE_IN_PAGES(tlen) & 0xff));
 
 			pgno += CSIZE_IN_PAGES(tlen);
+			chunk_free(r->chunks[i]);
+			r->chunks[i] = NULL;
 		}else if ( r->locs[i] ) {
 			/* copy existing */
 		}
@@ -322,6 +342,10 @@ int region_save(region_t r)
 	/* write header */
 	ret = pwrite(fd, r->locs, sizeof(r->locs), 0);
 	if ( ret < 0 || (size_t)ret < sizeof(r->locs) )
+		goto out_close;
+
+	ret = pwrite(fd, r->ts, sizeof(r->ts), INTERNAL_CHUNK_SIZE);
+	if ( ret < 0 || (size_t)ret < sizeof(r->ts) )
 		goto out_close;
 
 	/* we need to sync + close the file to catch any errors */
