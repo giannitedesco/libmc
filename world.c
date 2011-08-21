@@ -107,28 +107,28 @@ world_t world_open(const char *dir)
 	if ( asprintf(&path, "%s/level.dat", dir) < 0 )
 		goto out_free;
 	w->level_dat = load_level_dat(path);
-	if ( NULL == w->level_dat )
-		goto out_free_path;
 	free(path);
+	if ( NULL == w->level_dat )
+		goto out_free;
 
 	/* Open regular world */
 	if ( asprintf(&path, "%s/region", dir) < 0 )
 		goto out_free;
 	w->earth = dim_open(path);
-	if ( NULL == w->earth )
-		goto out_free_path;
 	free(path);
+	if ( NULL == w->earth )
+		goto out_free;
 
 	/* Open nether */
 	if ( asprintf(&path, "%s/DIM-1/region", dir) < 0 )
 		goto out_free;
 	w->nether = dim_open(path);
 	free(path);
+	if ( NULL == w->nether )
+		goto out_free;
 
 	goto out;
 
-out_free_path:
-	free(path);
 out_free:
 	nbt_free(w->level_dat);
 	dim_close(w->earth);

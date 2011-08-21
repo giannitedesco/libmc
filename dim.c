@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <errno.h>
 #include <sys/types.h>
 #include <dirent.h>
 
@@ -100,8 +101,14 @@ dim_t dim_open(const char *path)
 		goto out_free;
 
 	dir = opendir(d->path);
-	if ( NULL == dir )
-		goto out_free_path;
+	if ( NULL == dir ) {
+		if ( errno == ENOENT ) {
+			/* treat as empty region */
+			goto ok;
+		}else{
+			goto out_free_path;
+		}
+	}
 
 	while( (de = readdir(dir)) ) {
 		int x, z;
@@ -113,6 +120,7 @@ dim_t dim_open(const char *path)
 
 	closedir(dir);
 
+ok:
 	return d;
 
 out_free_path:
