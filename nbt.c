@@ -109,33 +109,33 @@ static void do_dump(struct nbt_tag *tag, unsigned int depth)
 	struct nbt_tag *c;
 	int32_t i;
 
-	printf("%*c Tag_%s: %s",
+	printf("%*c Tag_%s '%s'",
 		2 * depth, ' ', tstr[tag->t_type], tag->t_name);
 
 	switch(tag->t_type) {
 	case NBT_TAG_Byte_Array:
-		printf(" == %d bytes\n", tag->t_u.t_blob.len);
+		printf(" = %d bytes\n", tag->t_u.t_blob.len);
 		break;
 	case NBT_TAG_Byte:
-		printf(" == %d\n", tag->t_u.t_byte);
+		printf(" = %d\n", tag->t_u.t_byte);
 		break;
 	case NBT_TAG_Short:
-		printf(" == %d\n", tag->t_u.t_short);
+		printf(" = %d\n", tag->t_u.t_short);
 		break;
 	case NBT_TAG_Int:
-		printf(" == %"PRId32"\n", tag->t_u.t_int);
+		printf(" = %"PRId32"\n", tag->t_u.t_int);
 		break;
 	case NBT_TAG_Long:
-		printf(" == %"PRId64"\n", tag->t_u.t_long);
+		printf(" = %"PRId64"\n", tag->t_u.t_long);
 		break;
 	case NBT_TAG_Float:
-		printf(" == %f\n", tag->t_u.t_float);
+		printf(" = %f\n", tag->t_u.t_float);
 		break;
 	case NBT_TAG_Double:
-		printf(" == %F\n", tag->t_u.t_double);
+		printf(" = %F\n", tag->t_u.t_double);
 		break;
 	case NBT_TAG_String:
-		printf(" == '%s'\n", tag->t_u.t_str);
+		printf(" = '%s'\n", tag->t_u.t_str);
 		break;
 	case NBT_TAG_List:
 		printf(" type = %s [%d] = {\n",
