@@ -200,8 +200,9 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 		return 0;
 
 	/* XXX: not allocated */
-	if ( buf == NULL )
+	if ( buf == NULL ) {
 		return NULL;
+	}
 
 	hdr = (struct rchunk_hdr *)buf;
 	len -= sizeof(*hdr);
@@ -227,8 +228,9 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 	}
 
 	ptr = region_decompress(ptr, len, &dlen);
-	if ( NULL == ptr )
+	if ( NULL == ptr ) {
 		goto err_free;
+	}
 
 	/* chunk now owns ptr */
 	c = chunk_from_bytes(ptr, dlen);
@@ -313,6 +315,9 @@ int region_save(region_t r)
 			/* copy existing */
 		}
 	}
+
+	if ( ftruncate(fd, pgno << INTERNAL_CHUNK_SHIFT) )
+		goto out_close;
 
 	/* write header */
 	ret = pwrite(fd, r->locs, sizeof(r->locs), 0);

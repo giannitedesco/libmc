@@ -31,23 +31,25 @@ int main(int argc, char **argv)
 	
 	printf("%s opened for reading\n", argv[1]);
 
-	//if ( !chunk_solid(c, 0) )
-	//	return EXIT_FAILURE;
-	//printf("Set to solid diamond ore\n");
-
 	dst = region_new("test.mcr");
 	if ( NULL == dst )
 		return EXIT_FAILURE;
 
 	printf("test.mcr opened for writing\n");
 
-	for(i = 0; i < CHUNK_X; i++) {
-		for(j = 0; j < CHUNK_Z; j++) {
+	for(i = 0; i < REGION_X; i++) {
+		for(j = 0; j < REGION_Z; j++) {
 			c = region_get_chunk(src, i, j);
 			if ( NULL == c )
 				return EXIT_FAILURE;
 
 			printf("fetched out chunk at %u,%u\n", i, j);
+
+#if 0
+			if ( !chunk_solid(c, 8) )
+				return EXIT_FAILURE;
+			printf("Set to solid diamond ore\n");
+#endif
 
 			if ( !region_set_chunk(dst, i, j, c) )
 				return EXIT_FAILURE;
