@@ -94,7 +94,7 @@ static nbt_t load_level_dat(const char *path)
 	return nbt;
 }
 
-world_t world_open(const char *dir, int rdonly)
+world_t world_open(const char *dir)
 {
 	struct _world *w;
 	char *path;
@@ -113,7 +113,7 @@ world_t world_open(const char *dir, int rdonly)
 	/* Open regular world */
 	if ( asprintf(&path, "%s/region", dir) < 0 )
 		goto out_free;
-	w->earth = dim_open(path, rdonly);
+	w->earth = dim_open(path);
 	if ( NULL == w->earth )
 		goto out_free_path;
 	free(path);
@@ -121,9 +121,7 @@ world_t world_open(const char *dir, int rdonly)
 	/* Open nether */
 	if ( asprintf(&path, "%s/DIM-1/region", dir) < 0 )
 		goto out_free;
-	w->nether = dim_open(path, rdonly);
-	if ( NULL == w->nether )
-		goto out_free;
+	w->nether = dim_open(path);
 	free(path);
 
 	goto out;

@@ -369,7 +369,7 @@ int nbt_long_get(nbt_tag_t t, int64_t *val)
 	return 1;
 }
 
-int nbt_buffer_get(nbt_tag_t t, const uint8_t **bytes, size_t *sz)
+int nbt_buffer_get(nbt_tag_t t, uint8_t **bytes, size_t *sz)
 {
 	if (NULL == t || t->t_type != NBT_TAG_Byte_Array)
 		return 0;
@@ -448,9 +448,6 @@ static void do_get_size(struct nbt_tag *tag, int type, size_t *sz)
 	}
 
 	switch(tag->t_type) {
-	case NBT_TAG_Byte_Array:
-		*sz += sizeof(tag->t_u.t_blob.len) + tag->t_u.t_blob.len;
-		break;
 	case NBT_TAG_Byte:
 		*sz += sizeof(uint8_t);
 		break;
@@ -468,6 +465,9 @@ static void do_get_size(struct nbt_tag *tag, int type, size_t *sz)
 		break;
 	case NBT_TAG_Double:
 		*sz += sizeof(double);
+		break;
+	case NBT_TAG_Byte_Array:
+		*sz += sizeof(tag->t_u.t_blob.len) + tag->t_u.t_blob.len;
 		break;
 	case NBT_TAG_String:
 		*sz += sizeof(int16_t) + strlen(tag->t_u.t_str);
@@ -492,6 +492,121 @@ size_t nbt_size_in_bytes(nbt_t nbt)
 	size_t sz = 0;
 	do_get_size(&nbt->root, TAG_NAMED, &sz);
 	return sz;
+}
+
+static int do_get_bytes(struct nbt_tag *tag, int type,
+				uint8_t **pptr, uint8_t *end)
+{
+	uint8_t *ptr = *pptr;
+	struct nbt_tag *c;
+	int16_t slen;
+	int32_t i;
+
+	if ( type == TAG_NAMED ) {
+		slen = strlen(tag->t_name);
+
+		if ( ptr + 3 + slen > end )
+			return 0;
+
+		*ptr = tag->t_type;
+		ptr++;
+
+		*(int16_t *)ptr = htobe16(slen);
+		ptr += sizeof(int16_t);
+
+		memcpy(ptr, tag->t_name, slen);
+		ptr += slen;
+	}
+
+	switch(tag->t_type) {
+	case NBT_TAG_Byte:
+		if ( ptr + sizeof(uint8_t) > end )
+			return 0;
+		*ptr = tag->t_u.t_byte;
+		ptr += sizeof(uint8_t);
+		break;
+	case NBT_TAG_Short:
+		if ( ptr + sizeof(uint16_t) > end )
+			return 0;
+		*(int16_t *)ptr = htobe16(tag->t_u.t_short);
+		ptr += sizeof(int16_t);
+		break;
+	case NBT_TAG_Int:
+		if ( ptr + sizeof(uint32_t) > end )
+			return 0;
+		*(int32_t *)ptr = htobe32(tag->t_u.t_int);
+		ptr += sizeof(int32_t);
+		break;
+	case NBT_TAG_Long:
+		if ( ptr + sizeof(uint64_t) > end )
+			return 0;
+		*(int64_t *)ptr = htobe64(tag->t_u.t_long);
+		ptr += sizeof(int64_t);
+		break;
+	case NBT_TAG_Float:
+		if ( ptr + sizeof(float) > end )
+			return 0;
+		*(float *)ptr = htobe32((int32_t)tag->t_u.t_float);
+		ptr += sizeof(float);
+		break;
+	case NBT_TAG_Double:
+		if ( ptr + sizeof(double) > end )
+			return 0;
+		*(double *)ptr = htobe64((int64_t)tag->t_u.t_double);
+		ptr += sizeof(double);
+		break;
+	case NBT_TAG_Byte_Array:
+		if ( ptr + sizeof(int32_t) + tag->t_u.t_blob.len > end ) {
+			return 0;
+		}
+		*(int32_t *)ptr = htobe32(tag->t_u.t_blob.len);
+		ptr += sizeof(int32_t);
+		memcpy(ptr, tag->t_u.t_blob.array, tag->t_u.t_blob.len);
+		ptr += tag->t_u.t_blob.len;
+		break;
+	case NBT_TAG_String:
+		slen = strlen(tag->t_u.t_str);
+		if ( ptr + sizeof(int16_t) + slen > end )
+			return 0;
+		*(int16_t *)ptr = htobe16(slen);
+		memcpy(ptr + sizeof(int16_t), tag->t_u.t_str, slen);
+		ptr += sizeof(int16_t) + slen;
+		break;
+	case NBT_TAG_List:
+		if ( ptr +  sizeof(uint8_t) + sizeof(int32_t) > end )
+			return 0;
+		*ptr = tag->t_u.t_list.type;
+		ptr += sizeof(uint8_t);
+		*(int32_t *)ptr = htobe32(tag->t_u.t_list.len);
+		ptr += sizeof(int32_t);
+
+		for(i = 0; i < tag->t_u.t_list.len; i++)
+			if ( !do_get_bytes(tag->t_u.t_list.array[i],
+					TAG_ANON, &ptr, end) )
+				return 0;
+		break;
+	case NBT_TAG_Compound:
+		list_for_each_entry(c, &tag->t_u.t_compound, t_list)
+			if ( !do_get_bytes(c, TAG_NAMED, &ptr, end) )
+				return 0;
+
+		if ( ptr + sizeof(uint8_t) > end )
+			return 0;
+		*ptr = NBT_TAG_End;
+		ptr += sizeof(uint8_t);
+		break;
+	default:
+		return 0;
+	}
+
+	*pptr = ptr;
+	return 1;
+}
+
+int nbt_get_bytes(nbt_t nbt, uint8_t *buf, size_t len)
+{
+	uint8_t **pptr = &buf;
+	return do_get_bytes(&nbt->root, TAG_NAMED, pptr, buf + len);
 }
 
 nbt_t nbt_decode(const uint8_t *buf, size_t len)

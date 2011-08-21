@@ -18,6 +18,7 @@ typedef struct nbt_tag *nbt_tag_t;
 
 nbt_t nbt_decode(const uint8_t *buf, size_t len);
 size_t nbt_size_in_bytes(nbt_t nbt);
+int nbt_get_bytes(nbt_t nbt, uint8_t *buf, size_t len);
 nbt_tag_t nbt_root_tag(nbt_t nbt);
 void nbt_free(nbt_t nbt);
 
@@ -28,7 +29,7 @@ int nbt_byte_get(nbt_tag_t t, uint8_t *val);
 int nbt_short_get(nbt_tag_t t, int16_t *val);
 int nbt_int_get(nbt_tag_t t, int32_t *val);
 int nbt_long_get(nbt_tag_t t, int64_t *val);
-int nbt_buffer_get(nbt_tag_t t, const uint8_t **bytes, size_t *sz);
+int nbt_buffer_get(nbt_tag_t t, uint8_t **bytes, size_t *sz);
 int nbt_string_get(nbt_tag_t t, char **val);
 int nbt_list_get(nbt_tag_t t, unsigned idx, nbt_tag_t *val);
 int nbt_list_size(nbt_tag_t t);

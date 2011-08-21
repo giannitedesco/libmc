@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	w = world_open(argv[1], 1);
+	w = world_open(argv[1]);
 	if ( w == NULL )
 		return EXIT_FAILURE;
 
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 			if ( NULL == c )
 				continue;
 
-			//printf("Got chunk x=%u, z=%u\n", x, z);
+			printf("Got chunk x=%u, z=%u\n", x, z);
 			chunk_free(c);
 		}
 	}

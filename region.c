@@ -5,6 +5,7 @@
  * can't handle lots of separate small chunk files so it's really kind of
  * like an archive format for chunks.
 */
+#define _GNU_SOURCE
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
@@ -14,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 
 #include <endian.h>
@@ -25,6 +27,9 @@
 
 /* chunk data stored at 4KB granularity */
 #define INTERNAL_CHUNK_SHIFT 	12
+#define INTERNAL_CHUNK_SIZE	(1 << INTERNAL_CHUNK_SHIFT)
+#define CSIZE_IN_PAGES(x)	((x + (INTERNAL_CHUNK_SIZE - 1)) >> \
+					INTERNAL_CHUNK_SHIFT)
 
 #define RCHUNK_GZIP		1
 #define RCHUNK_ZLIB		2
@@ -35,13 +40,14 @@ struct rchunk_hdr {
 } __attribute__((packed));
 
 struct _region {
+	char *path;
 	int fd;
 	uint32_t locs[REGION_X * REGION_Z];
 	chunk_t chunks[REGION_X * REGION_Z];
 	uint8_t dirty;
 };
 
-region_t region_open(const char *fn, int rdonly)
+region_t region_open(const char *fn)
 {
 	struct _region *r;
 	ssize_t ret;
@@ -50,7 +56,11 @@ region_t region_open(const char *fn, int rdonly)
 	if ( NULL == r )
 		goto out;
 
-	r->fd = open(fn, (rdonly) ? O_RDONLY : O_RDWR);
+	r->path = strdup(fn);
+	if ( NULL == r->path )
+		goto out;
+
+	r->fd = open(fn, O_RDONLY);
 	if ( r->fd < 0 )
 		goto out_free;
 
@@ -63,6 +73,7 @@ region_t region_open(const char *fn, int rdonly)
 out_close:
 	close(r->fd);
 out_free:
+	free(r->path);
 	free(r);
 	r = NULL;
 out:
@@ -72,25 +83,18 @@ out:
 region_t region_new(const char *fn)
 {
 	struct _region *r;
-	ssize_t ret;
 
 	r = calloc(1, sizeof(*r));
 	if ( NULL == r )
 		goto out;
-	
-	r->fd = open(fn, O_RDWR|O_CREAT|O_TRUNC, 0600);
-	if ( r->fd < 0 )
+
+	r->path = strdup(fn);
+	if ( NULL == r->path )
 		goto out_free;
 
-	/* write empty header */
-	ret = pwrite(r->fd, r->locs, sizeof(r->locs), 0);
-	if ( ret < 0 || (size_t)ret < sizeof(r->locs) )
-		goto out_close;
-
+	r->fd = -1;
 	goto out;
 
-out_close:
-	close(r->fd);
 out_free:
 	free(r);
 	r = NULL;
@@ -144,6 +148,7 @@ static uint8_t *region_decompress(const uint8_t *buf, size_t len, size_t *dlen)
 		case Z_OK:
 			return d;
 		case Z_BUF_ERROR:
+			printf("er...\n");
 			*dlen *= 2;
 			continue;
 		default:
@@ -194,6 +199,10 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 	if ( !get_chunk(r, x, z, &buf, &len) )
 		return 0;
 
+	/* XXX: not allocated */
+	if ( buf == NULL )
+		return NULL;
+
 	hdr = (struct rchunk_hdr *)buf;
 	len -= sizeof(*hdr);
 	ptr = buf + sizeof(*hdr);
@@ -242,32 +251,112 @@ int region_set_chunk(region_t r, uint8_t x, uint8_t z, chunk_t c)
 
 int region_save(region_t r)
 {
+	struct rchunk_hdr *hdr;
+	unsigned int i, pgno;
+	ssize_t ret;
+	char *path;
 	int rc = 0;
-	unsigned int i;
+	int fd;
 
 	if ( !r->dirty )
 		return 1;
 
-	for(i = 0; i < REGION_X * REGION_Z; i++) {
-		if ( r->chunks[i] ) {
-			size_t clen;
+	/* write to temporary file */
+	if ( asprintf(&path, "%s.tmp", r->path) < 0 )
+		goto out;
 
-			clen = chunk_size_in_bytes(r->chunks[i]);
-			/* encode chunk */
+	fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0600);
+	if ( fd < 0 )
+		goto out_free;
+
+	/* write out chunk data */
+	for(i = 0, pgno = 2; i < REGION_X * REGION_Z; i++) {
+		if ( r->chunks[i] ) {
+			size_t clen, tlen;
+			uint8_t *cbuf, *buf, *ptr;
+
+			/* get compressed chunk data */
+			cbuf = chunk_encode(r->chunks[i],
+						CHUNK_ENC_ZLIB, &clen);
+			if ( NULL == cbuf )
+				goto out_close;
+
+			/* wrap it up with header */
+			tlen = clen + sizeof(*hdr);
+			buf = malloc(tlen);
+			if ( NULL == buf ) {
+				free(cbuf);
+				goto out_close;
+			}
+
+			hdr = (struct rchunk_hdr *)buf;
+			hdr->c_len = htobe32(clen);
+			hdr->c_encoding = RCHUNK_ZLIB;
+
+			ptr = buf + sizeof(*hdr);
+			memcpy(ptr, cbuf, clen);
+			free(cbuf);
+
+			/* write it out */
+			ret = pwrite(fd, buf, tlen,
+					pgno << INTERNAL_CHUNK_SHIFT);
+			free(buf);
+			if ( ret < 0 || (size_t)ret != tlen )
+				goto out_close;
+
+			/* last, update location table */
+			r->locs[i] = htobe32(pgno << 8 |
+					(CSIZE_IN_PAGES(tlen) & 0xff));
+
+			pgno += CSIZE_IN_PAGES(tlen);
 		}else if ( r->locs[i] ) {
 			/* copy existing */
 		}
 	}
 
+	/* write header */
+	ret = pwrite(fd, r->locs, sizeof(r->locs), 0);
+	if ( ret < 0 || (size_t)ret < sizeof(r->locs) )
+		goto out_close;
+
+	/* we need to sync + close the file to catch any errors */
+	if ( fsync(fd) && errno != EROFS && errno != EINVAL )
+		goto out_close;
+	if ( close(fd) < 0 )
+		goto out_free;
+
+	/* rename over actual path */
+	if ( rename(path, r->path) )
+		goto out_free;
+
+	/* refresh our fd by opening the new file read-only */
+	fd = open(r->path, O_RDONLY);
+	if ( fd < 0 )
+		goto out_free;
+
+	if ( r->fd >= 0 )
+		close(r->fd);
+
+	r->fd = fd;
 	r->dirty = 0;
 	rc = 1;
+	goto out_free;
+
+out_close:
+	close(fd);
+	unlink(path);
+out_free:
+	free(path);
+out:
 	return rc;
 }
 
 void region_close(region_t r)
 {
 	if ( r ) {
-		close(r->fd);
+		free(r->path);
+		if ( r->fd >= 0 )
+			close(r->fd);
 		free(r);
 	}
 }

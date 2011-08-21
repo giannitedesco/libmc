@@ -16,6 +16,7 @@
 int main(int argc, char **argv)
 {
 	region_t src, dst;
+	unsigned int i, j;
 	chunk_t c;
 
 	if ( argc < 2 ) {
@@ -24,17 +25,15 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	src = region_open(argv[1], 1);
+	src = region_open(argv[1]);
 	if ( NULL == src )
 		return EXIT_FAILURE;
 	
 	printf("%s opened for reading\n", argv[1]);
 
-	c = region_get_chunk(src, 0, 0);
-	if ( NULL == c )
-		return EXIT_FAILURE;
-
-	printf("fetched out chunk at 0,0\n");
+	//if ( !chunk_solid(c, 0) )
+	//	return EXIT_FAILURE;
+	//printf("Set to solid diamond ore\n");
 
 	dst = region_new("test.mcr");
 	if ( NULL == dst )
@@ -42,10 +41,20 @@ int main(int argc, char **argv)
 
 	printf("test.mcr opened for writing\n");
 
-	if ( !region_set_chunk(dst, 0, 0, c) )
-		return EXIT_FAILURE;
-	
-	printf("chunk set to 0,0 in test.mcr\n");
+	for(i = 0; i < CHUNK_X; i++) {
+		for(j = 0; j < CHUNK_Z; j++) {
+			c = region_get_chunk(src, i, j);
+			if ( NULL == c )
+				return EXIT_FAILURE;
+
+			printf("fetched out chunk at %u,%u\n", i, j);
+
+			if ( !region_set_chunk(dst, i, j, c) )
+				return EXIT_FAILURE;
+
+			printf("chunk set to %u,%u in test.mcr\n", i, j);
+		}
+	}
 
 	if ( !region_save(dst) )
 		return EXIT_FAILURE;
