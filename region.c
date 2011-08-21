@@ -99,7 +99,7 @@ static uint8_t *region_decompress(const uint8_t *buf, size_t len, size_t *dlen)
 	 * air (top half will all be air) end plenty contig runs of
 	 * stone, dirt or sand.
 	 */
-	for(*dlen = len * 48; ; *dlen *= 2) {
+	for(*dlen = 88 << 10; ; *dlen += 16 << 10) {
 		new = realloc(d, *dlen);
 		if ( NULL == new ) {
 			free(d);

@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 			if ( NULL == c )
 				continue;
 
-			printf("Got chunk x=%u, z=%u\n", x, z);
+			//printf("Got chunk x=%u, z=%u\n", x, z);
 			chunk_free(c);
 		}
 	}
