@@ -13,26 +13,31 @@
 #include <libmc/chunk.h>
 #include <libmc/region.h>
 #include <libmc/dim.h>
+#include <libmc/world.h>
 
 int main(int argc, char **argv)
 {
+	world_t w;
 	dim_t d;
 	region_t r;
 	uint8_t x, z;
 
 	if ( argc < 2 ) {
-		fprintf(stderr, "Usage:\n\t%s <region>\n",
+		fprintf(stderr, "Usage:\n\t%s <save-game>\n",
 			argv[0]);
 		return EXIT_FAILURE;
 	}
 
-	d = dim_open(argv[1]);
+	w = world_open(argv[1]);
+	if ( w == NULL )
+		return EXIT_FAILURE;
+
+	d = world_get_earth(w);
 	if ( NULL == d )
 		return EXIT_FAILURE;
 
 	printf("Opened dimension: %s\n", argv[1]);
 
-	//r = region_open(argv[1]);
 	r = dim_get_region(d, 0, 0);
 	if ( NULL == r )
 		return EXIT_FAILURE;
@@ -46,12 +51,12 @@ int main(int argc, char **argv)
 			if ( NULL == c )
 				continue;
 
-			//printf("Got chunk x=%u, z=%u\n", x, z);
+			printf("Got chunk x=%u, z=%u\n", x, z);
 			chunk_free(c);
 		}
 	}
 
-	dim_close(d);
+	world_close(w);
 
 	return EXIT_SUCCESS;
 }
