@@ -39,6 +39,10 @@ static int gunzip(const char *path, uint8_t **begin, size_t *osz)
 	uint32_t d;
 	gzFile gz;
 
+	/* gcc, huh?! */
+	*begin = NULL;
+	*osz = 0;
+
 	fd = open(path, O_RDONLY);
 	if ( fd < 0 )
 		goto out;
@@ -59,14 +63,14 @@ static int gunzip(const char *path, uint8_t **begin, size_t *osz)
 
 	gz = gzdopen(fd, "r");
 	ret = gzread(gz, buf, dlen);
-	if ( ret >= 0 ) {
-		rc = 1;
-		*begin = buf;
-		*osz = dlen;
-	}else{
-		printf("%d\n", ret);
+	if ( ret < 0 ) {
 		free(buf);
+		goto out_close;
 	}
+
+	*begin = buf;
+	*osz = dlen;
+	rc = 1;
 
 out_close:
 	close(fd);
@@ -90,7 +94,7 @@ static nbt_t load_level_dat(const char *path)
 	return nbt;
 }
 
-world_t world_open(const char *dir)
+world_t world_open(const char *dir, int rdonly)
 {
 	struct _world *w;
 	char *path;
@@ -109,7 +113,7 @@ world_t world_open(const char *dir)
 	/* Open regular world */
 	if ( asprintf(&path, "%s/region", dir) < 0 )
 		goto out_free;
-	w->earth = dim_open(path);
+	w->earth = dim_open(path, rdonly);
 	if ( NULL == w->earth )
 		goto out_free_path;
 	free(path);
@@ -117,7 +121,7 @@ world_t world_open(const char *dir)
 	/* Open nether */
 	if ( asprintf(&path, "%s/DIM-1/region", dir) < 0 )
 		goto out_free;
-	w->nether = dim_open(path);
+	w->nether = dim_open(path, rdonly);
 	if ( NULL == w->nether )
 		goto out_free;
 	free(path);

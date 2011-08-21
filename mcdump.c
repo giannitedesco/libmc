@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	w = world_open(argv[1]);
+	w = world_open(argv[1], 1);
 	if ( w == NULL )
 		return EXIT_FAILURE;
 

@@ -37,9 +37,39 @@ struct rchunk_hdr {
 struct _region {
 	int fd;
 	uint32_t locs[REGION_X * REGION_Z];
+	chunk_t chunks[REGION_X * REGION_Z];
+	uint8_t dirty;
 };
 
-region_t region_open(const char *fn)
+region_t region_open(const char *fn, int rdonly)
+{
+	struct _region *r;
+	ssize_t ret;
+
+	r = calloc(1, sizeof(*r));
+	if ( NULL == r )
+		goto out;
+
+	r->fd = open(fn, (rdonly) ? O_RDONLY : O_RDWR);
+	if ( r->fd < 0 )
+		goto out_free;
+
+	ret = pread(r->fd, r->locs, sizeof(r->locs), 0);
+	if ( ret < 0 || (size_t)ret < sizeof(r->locs) )
+		goto out_close;
+
+	goto out;
+
+out_close:
+	close(r->fd);
+out_free:
+	free(r);
+	r = NULL;
+out:
+	return r;
+}
+
+region_t region_new(const char *fn)
 {
 	struct _region *r;
 	ssize_t ret;
@@ -48,11 +78,12 @@ region_t region_open(const char *fn)
 	if ( NULL == r )
 		goto out;
 	
-	r->fd = open(fn, O_RDONLY);
+	r->fd = open(fn, O_RDWR|O_CREAT|O_TRUNC, 0600);
 	if ( r->fd < 0 )
 		goto out_free;
 
-	ret = pread(r->fd, r->locs, sizeof(r->locs), 0);
+	/* write empty header */
+	ret = pwrite(r->fd, r->locs, sizeof(r->locs), 0);
 	if ( ret < 0 || (size_t)ret < sizeof(r->locs) )
 		goto out_close;
 
@@ -122,29 +153,46 @@ static uint8_t *region_decompress(const uint8_t *buf, size_t len, size_t *dlen)
 	}
 }
 
+static int get_chunk(struct _region *r, uint8_t x, uint8_t z,
+			uint8_t **buf, size_t *sz)
+{
+	off_t off;
+	size_t len;
+	ssize_t ret;
+
+	if ( !chunk_lookup(r, x, z, &off, &len) )
+		return 0;
+
+	/* chunk not populated */
+	if ( !off || !len ) {
+		*buf = NULL;
+		*sz = 0;
+		return 1;
+	}
+
+	*buf = malloc(len);
+	if ( NULL == *buf )
+		return 0;
+
+	ret = pread(r->fd, *buf, len, off);
+	if ( ret < 0 || (size_t)ret < len ) {
+		free(*buf);
+		return 0;
+	}
+
+	*sz = len;
+	return 1;
+}
+
 chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 {
 	const struct rchunk_hdr *hdr;
-	off_t off;
 	size_t len, dlen;
 	uint8_t *buf, *ptr;
-	ssize_t ret;
 	chunk_t c;
 
-	if ( !chunk_lookup(r, x, z, &off, &len) )
-		return NULL;
-
-	/* chunk not populated */
-	if ( !off || !len )
-		return NULL;
-
-	buf = malloc(len);
-	if ( NULL == buf )
-		return NULL;
-
-	ret = pread(r->fd, buf, len, off);
-	if ( ret < 0 || (size_t)ret < len )
-		goto err_free;
+	if ( !get_chunk(r, x, z, &buf, &len) )
+		return 0;
 
 	hdr = (struct rchunk_hdr *)buf;
 	len -= sizeof(*hdr);
@@ -175,14 +223,43 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 
 	/* chunk now owns ptr */
 	c = chunk_from_bytes(ptr, dlen);
-
 	free(ptr);
 	free(buf);
-
 	return c;
 err_free:
 	free(buf);
 	return NULL;
+}
+
+int region_set_chunk(region_t r, uint8_t x, uint8_t z, chunk_t c)
+{
+	if ( x >= REGION_X || z >= REGION_Z )
+		return 0;
+	r->dirty = 1;
+	r->chunks[x * REGION_X + z] = c;
+	return 1;
+}
+
+int region_save(region_t r)
+{
+	int rc = 0;
+	unsigned int i;
+	ssize_t ret;
+
+	if ( !r->dirty )
+		return 1;
+
+	for(i = 0; i < REGION_X * REGION_Z; i++) {
+		if ( r->chunks[i] ) {
+			/* encode chunk */
+		}else if ( r->locs[i] ) {
+			/* copy existing */
+		}
+	}
+
+	r->dirty = 0;
+	rc = 1;
+	return rc;
 }
 
 void region_close(region_t r)

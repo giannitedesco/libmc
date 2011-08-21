@@ -54,7 +54,7 @@ static int reg_assure(struct _dim *d)
 	return 1;
 }
 
-static int add_region(struct _dim *d, int x, int z)
+static int add_region(struct _dim *d, int x, int z, int rdonly)
 {
 	char *fn;
 	region_t r;
@@ -62,7 +62,7 @@ static int add_region(struct _dim *d, int x, int z)
 	if ( asprintf(&fn, "%s/r.%d.%d.mcr", d->path, x, z) < 0 )
 		goto err;
 
-	r = region_open(fn);
+	r = region_open(fn, rdonly);
 	if ( NULL == r )
 		goto err_free;
 
@@ -85,7 +85,7 @@ err:
 	return 0;
 }
 				
-dim_t dim_open(const char *path)
+dim_t dim_open(const char *path, int rdonly)
 {
 	struct _dim *d;
 	struct dirent *de;
@@ -107,7 +107,7 @@ dim_t dim_open(const char *path)
 		int x, z;
 		if ( sscanf(de->d_name, "r.%d.%d.mcr", &x, &z) != 2 )
 			continue;
-		if ( !add_region(d, x, z) )
+		if ( !add_region(d, x, z, rdonly) )
 			goto out_free_path;
 	}
 
