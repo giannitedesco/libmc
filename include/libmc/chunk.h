@@ -8,6 +8,7 @@
 typedef struct _chunk *chunk_t;
 
 chunk_t chunk_from_bytes(uint8_t *buf, size_t sz);
+size_t chunk_size_in_bytes(chunk_t c);
 void chunk_free(chunk_t c);
 
 #endif /* _CHUNK_H */

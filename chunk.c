@@ -14,10 +14,13 @@
 
 struct _chunk {
 	nbt_t nbt;
-	int32_t xpos, zpos;
-	uint8_t *blocks;
-	uint8_t *data;
+	nbt_tag_t level;
 };
+
+size_t chunk_size_in_bytes(chunk_t c)
+{
+	return nbt_size_in_bytes(c->nbt);
+}
 
 chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 {
@@ -33,31 +36,15 @@ chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 	if ( NULL == c->nbt )
 		goto out_free;
 
-	//nbt_dump(c->nbt);
+	nbt_dump(c->nbt);
+	printf("decoded %zu bytes of chunk data\n", sz);
 
 	root = nbt_root_tag(c->nbt);
 	if ( NULL == root )
 		goto out_free;
 
-	level = nbt_compound_get_child(root, "Level");
-	if ( NULL == level )
-		goto out_free;
-
-	if ( !nbt_int_get(nbt_compound_get_child(level, "xPos"), &c->xpos) )
-		goto out_free;
-	if ( !nbt_int_get(nbt_compound_get_child(level, "zPos"), &c->zpos) )
-		goto out_free;
-
-	if ( !nbt_buffer_get(nbt_compound_get_child(level, "Blocks"),
-				(const uint8_t **)&c->blocks, &blen) )
-		goto out_free;
-	if ( blen != CHUNK_X * CHUNK_Y * CHUNK_Z )
-		goto out_free;
-
-	if ( !nbt_buffer_get(nbt_compound_get_child(level, "Data"),
-				(const uint8_t **)&c->blocks, &blen) )
-		goto out_free;
-	if ( blen != (CHUNK_X * CHUNK_Y * CHUNK_Z) / 2)
+	c->level = nbt_compound_get_child(root, "Level");
+	if ( NULL == c->level )
 		goto out_free;
 
 	goto out;

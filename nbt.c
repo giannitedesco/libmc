@@ -438,6 +438,62 @@ static void free_nbt_data(struct nbt_tag *tag)
 	free(tag->t_name);
 }
 
+static void do_get_size(struct nbt_tag *tag, int type, size_t *sz)
+{
+	struct nbt_tag *c;
+	int32_t i;
+
+	if ( type == TAG_NAMED ) {
+		*sz += 3 + strlen(tag->t_name);
+	}
+
+	switch(tag->t_type) {
+	case NBT_TAG_Byte_Array:
+		*sz += sizeof(tag->t_u.t_blob.len) + tag->t_u.t_blob.len;
+		break;
+	case NBT_TAG_Byte:
+		*sz += sizeof(uint8_t);
+		break;
+	case NBT_TAG_Short:
+		*sz += sizeof(int16_t);
+		break;
+	case NBT_TAG_Int:
+		*sz += sizeof(int32_t);
+		break;
+	case NBT_TAG_Long:
+		*sz += sizeof(int64_t);
+		break;
+	case NBT_TAG_Float:
+		*sz += sizeof(float);
+		break;
+	case NBT_TAG_Double:
+		*sz += sizeof(double);
+		break;
+	case NBT_TAG_String:
+		*sz += sizeof(int16_t) + strlen(tag->t_u.t_str);
+		break;
+	case NBT_TAG_List:
+		*sz += sizeof(uint8_t) + sizeof(int32_t);
+		for(i = 0; i < tag->t_u.t_list.len; i++)
+			do_get_size(tag->t_u.t_list.array[i], TAG_ANON, sz);
+		break;
+	case NBT_TAG_Compound:
+		list_for_each_entry(c, &tag->t_u.t_compound, t_list)
+			do_get_size(c, TAG_NAMED, sz);
+		*sz += 1;
+		break;
+	default:
+		break;
+	}
+}
+
+size_t nbt_size_in_bytes(nbt_t nbt)
+{
+	size_t sz = 0;
+	do_get_size(&nbt->root, TAG_NAMED, &sz);
+	return sz;
+}
+
 nbt_t nbt_decode(const uint8_t *buf, size_t len)
 {
 	const uint8_t *ptr;

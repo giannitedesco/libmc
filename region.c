@@ -250,6 +250,9 @@ int region_save(region_t r)
 
 	for(i = 0; i < REGION_X * REGION_Z; i++) {
 		if ( r->chunks[i] ) {
+			size_t clen;
+
+			clen = chunk_size_in_bytes(r->chunks[i]);
 			/* encode chunk */
 		}else if ( r->locs[i] ) {
 			/* copy existing */

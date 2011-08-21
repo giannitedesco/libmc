@@ -17,6 +17,7 @@ typedef struct _nbt *nbt_t;
 typedef struct nbt_tag *nbt_tag_t;
 
 nbt_t nbt_decode(const uint8_t *buf, size_t len);
+size_t nbt_size_in_bytes(nbt_t nbt);
 nbt_tag_t nbt_root_tag(nbt_t nbt);
 void nbt_free(nbt_t nbt);
 
