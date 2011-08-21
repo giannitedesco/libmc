@@ -15,6 +15,7 @@
 #include <libmc/nbt.h>
 
 struct _chunk {
+	unsigned int ref;
 	nbt_t nbt;
 	nbt_tag_t level;
 };
@@ -143,6 +144,7 @@ chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 	if ( NULL == c->level )
 		goto out_free;
 
+	c->ref = 1;
 	goto out;
 
 out_free:
@@ -152,10 +154,22 @@ out:
 	return c;
 }
 
-void chunk_free(chunk_t c)
+static void chunk_free(chunk_t c)
 {
 	if ( c ) {
 		nbt_free(c->nbt);
 		free(c);
 	}
+}
+
+void chunk_put(chunk_t c)
+{
+	if ( 0 == --c->ref )
+		chunk_free(c);
+}
+
+chunk_t chunk_get(chunk_t c)
+{
+	c->ref++;
+	return c;
 }

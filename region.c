@@ -254,6 +254,10 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 	c = chunk_from_bytes(ptr, dlen);
 	free(ptr);
 	free(buf);
+
+	/* don't increment refcount because we don't
+	 * keep a reference to it, this belongs to caller
+	 */
 	return c;
 err_free:
 	free(buf);
@@ -265,7 +269,7 @@ int region_set_chunk(region_t r, uint8_t x, uint8_t z, chunk_t c)
 	if ( x >= REGION_X || z >= REGION_Z )
 		return 0;
 	r->dirty = 1;
-	r->chunks[x * REGION_X + z] = c;
+	r->chunks[x * REGION_X + z] = chunk_get(c);
 	return 1;
 }
 
@@ -329,7 +333,7 @@ int region_save(region_t r)
 					(CSIZE_IN_PAGES(tlen) & 0xff));
 
 			pgno += CSIZE_IN_PAGES(tlen);
-			chunk_free(r->chunks[i]);
+			chunk_put(r->chunks[i]);
 			r->chunks[i] = NULL;
 		}else if ( r->locs[i] ) {
 			/* copy existing */

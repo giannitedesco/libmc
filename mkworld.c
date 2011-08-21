@@ -39,11 +39,11 @@ int main(int argc, char **argv)
 
 	for(i = 0; i < REGION_X; i++) {
 		for(j = 0; j < REGION_Z; j++) {
+			//printf("fetched out chunk at %u,%u\n", i, j);
+
 			c = region_get_chunk(src, i, j);
 			if ( NULL == c )
 				continue;
-
-			//printf("fetched out chunk at %u,%u\n", i, j);
 
 #if 0
 			if ( i == 0 && j == 0 && !chunk_solid(c, 56) )
@@ -59,6 +59,7 @@ int main(int argc, char **argv)
 			region_set_timestamp(dst, i, j,
 					region_get_timestamp(src, i, j));
 			//printf("chunk set to %u,%u in test.mcr\n", i, j);
+			chunk_put(c);
 		}
 	}
 
