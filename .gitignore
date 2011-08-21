@@ -2,3 +2,5 @@
 .*.d
 libmc.a
 mcdump
+nbtdump
+mkworld

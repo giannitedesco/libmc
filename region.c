@@ -244,7 +244,6 @@ int region_save(region_t r)
 {
 	int rc = 0;
 	unsigned int i;
-	ssize_t ret;
 
 	if ( !r->dirty )
 		return 1;

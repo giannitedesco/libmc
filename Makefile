@@ -19,7 +19,7 @@ CFLAGS := -g -pipe -O2 -Wall \
 	-Iinclude \
 	$(EXTRA_DEFS) 
 
-LIBMC_SLIB := libmc.a
+LIBMC_LIB := libmc.a
 LIBMC_OBJ := world.o \
 		dim.o \
 		region.o \
@@ -29,16 +29,21 @@ LIBMC_OBJ := world.o \
 
 MCDUMP_BIN := mcdump
 MCDUMP_LIBS := -lz
-MCDUMP_SLIBS := $(LIBMC_SLIB)
+MCDUMP_SLIBS := $(LIBMC_LIB)
 MCDUMP_OBJ := mcdump.o
 
 NBTDUMP_BIN := nbtdump
 NBTDUMP_LIBS := -lz
-NBTDUMP_SLIBS := $(LIBMC_SLIB)
+NBTDUMP_SLIBS := $(LIBMC_LIB)
 NBTDUMP_OBJ := nbtdump.o
 
-ALL_BIN := $(MCDUMP_BIN) $(NBTDUMP_BIN) $(LIBMC_SLIB)
-ALL_OBJ := $(MCDUMP_OBJ) $(NBTDUMP_OBJ) $(LIBMC_OBJ)
+MKWORLD_BIN := mkworld
+MKWORLD_LIBS := -lz
+MKWORLD_SLIBS := $(LIBMC_LIB)
+MKWORLD_OBJ := mkworld.o
+
+ALL_BIN := $(MCDUMP_BIN) $(NBTDUMP_BIN) $(LIBMC_LIB) $(MKWORLD_BIN)
+ALL_OBJ := $(MCDUMP_OBJ) $(NBTDUMP_OBJ) $(LIBMC_OBJ) $(MKWORLD_OBJ)
 ALL_DEP := $(patsubst %.o, .%.d, $(ALL_OBJ))
 ALL_TARGETS := $(ALL_BIN)
 
@@ -60,7 +65,7 @@ endif
 		-MT $(patsubst .%.d, %.o, $@) \
 		-c -o $(patsubst .%.d, %.o, $@) $<
 
-$(LIBMC_SLIB): $(LIBMC_OBJ)
+$(LIBMC_LIB): $(LIBMC_OBJ)
 	@echo " [SLIB] $@"
 	@$(AR) cr $@ $^
 
@@ -71,6 +76,10 @@ $(MCDUMP_BIN): $(MCDUMP_OBJ) $(MCDUMP_SLIBS)
 $(NBTDUMP_BIN): $(NBTDUMP_OBJ) $(NBTDUMP_SLIBS)
 	@echo " [LINK] $@"
 	@$(CC) $(CFLAGS) -o $@ $^ $(NBTDUMP_LIBS)
+
+$(MKWORLD_BIN): $(MKWORLD_OBJ) $(MKWORLD_SLIBS)
+	@echo " [LINK] $@"
+	@$(CC) $(CFLAGS) -o $@ $^ $(MKWORLD_LIBS)
 
 clean:
 	$(DEL) $(ALL_TARGETS) $(ALL_OBJ) $(ALL_DEP)
