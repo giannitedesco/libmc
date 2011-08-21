@@ -107,6 +107,18 @@ uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz)
 	}
 }
 
+int chunk_strip_entities(chunk_t c)
+{
+	nbt_tag_t ents;
+	int rc = 1;
+
+	ents = nbt_compound_get_child(c->level, "Entities");
+	if ( !nbt_list_nuke(ents) )
+		rc = 0;
+
+	return rc;
+}
+
 chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 {
 	struct _chunk *c;

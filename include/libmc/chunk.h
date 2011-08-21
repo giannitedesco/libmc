@@ -12,6 +12,7 @@ typedef struct _chunk *chunk_t;
 
 chunk_t chunk_from_bytes(uint8_t *buf, size_t sz);
 uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz);
+int chunk_strip_entities(chunk_t c);
 void chunk_free(chunk_t c);
 
 int chunk_solid(chunk_t c, unsigned int blk);

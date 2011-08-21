@@ -32,6 +32,7 @@ int nbt_long_get(nbt_tag_t t, int64_t *val);
 int nbt_buffer_get(nbt_tag_t t, uint8_t **bytes, size_t *sz);
 int nbt_string_get(nbt_tag_t t, char **val);
 int nbt_list_get(nbt_tag_t t, unsigned idx, nbt_tag_t *val);
+int nbt_list_nuke(nbt_tag_t t);
 int nbt_list_size(nbt_tag_t t);
 
 nbt_tag_t nbt_compound_get_child(nbt_tag_t t, const char *name);

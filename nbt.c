@@ -316,6 +316,34 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 	return ptr;
 }
 
+static void free_nbt_data(struct nbt_tag *tag)
+{
+	struct nbt_tag *c;
+	int32_t i;
+
+	switch(tag->t_type) {
+	case NBT_TAG_Byte_Array:
+		free(tag->t_u.t_blob.array);
+		break;
+	case NBT_TAG_String:
+		free(tag->t_u.t_str);
+		break;
+	case NBT_TAG_List:
+		for(i = 0; i < tag->t_u.t_list.len; i++)
+			free_nbt_data(tag->t_u.t_list.array[i]);
+		free(tag->t_u.t_list.array);
+		break;
+	case NBT_TAG_Compound:
+		list_for_each_entry(c, &tag->t_u.t_compound, t_list)
+			free_nbt_data(c);
+		break;
+	default:
+		break;
+	}
+
+	free(tag->t_name);
+}
+
 nbt_tag_t nbt_root_tag(nbt_t nbt)
 {
 	return &nbt->root;
@@ -396,6 +424,22 @@ int nbt_list_get(nbt_tag_t t, unsigned idx, nbt_tag_t *val)
 	return 1;
 }
 
+int nbt_list_nuke(nbt_tag_t t)
+{
+	int32_t i;
+
+	if (NULL == t || t->t_type != NBT_TAG_List)
+		return 0;
+
+	for(i = 0; i < t->t_u.t_list.len; i++)
+		free_nbt_data(t->t_u.t_list.array[i]);
+	free(t->t_u.t_list.array);
+
+	t->t_u.t_list.len = 0;
+	t->t_u.t_list.array = NULL;
+	return 1;
+}
+
 int nbt_list_size(nbt_tag_t t)
 {
 	if (NULL == t || t->t_type != NBT_TAG_List)
@@ -408,34 +452,6 @@ char *nbt_tag_name(nbt_tag_t t)
 	if ( NULL == t )
 		return NULL;
 	return t->t_name;
-}
-
-static void free_nbt_data(struct nbt_tag *tag)
-{
-	struct nbt_tag *c;
-	int32_t i;
-
-	switch(tag->t_type) {
-	case NBT_TAG_Byte_Array:
-		free(tag->t_u.t_blob.array);
-		break;
-	case NBT_TAG_String:
-		free(tag->t_u.t_str);
-		break;
-	case NBT_TAG_List:
-		for(i = 0; i < tag->t_u.t_list.len; i++)
-			free_nbt_data(tag->t_u.t_list.array[i]);
-		free(tag->t_u.t_list.array);
-		break;
-	case NBT_TAG_Compound:
-		list_for_each_entry(c, &tag->t_u.t_compound, t_list)
-			free_nbt_data(c);
-		break;
-	default:
-		break;
-	}
-
-	free(tag->t_name);
 }
 
 static void do_get_size(struct nbt_tag *tag, int type, size_t *sz)

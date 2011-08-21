@@ -19,8 +19,8 @@ int main(int argc, char **argv)
 	unsigned int i, j;
 	chunk_t c;
 
-	if ( argc < 2 ) {
-		fprintf(stderr, "Usage:\n\t%s <region>\n",
+	if ( argc < 3 ) {
+		fprintf(stderr, "Usage:\n\t%s <src> <dst>\n",
 			argv[0]);
 		return EXIT_FAILURE;
 	}
@@ -31,37 +31,41 @@ int main(int argc, char **argv)
 	
 	printf("%s opened for reading\n", argv[1]);
 
-	dst = region_new("test.mcr");
+	dst = region_new(argv[2]);
 	if ( NULL == dst )
 		return EXIT_FAILURE;
 
-	printf("test.mcr opened for writing\n");
+	printf("%s opened for writing\n", argv[2]);
 
 	for(i = 0; i < REGION_X; i++) {
 		for(j = 0; j < REGION_Z; j++) {
 			c = region_get_chunk(src, i, j);
 			if ( NULL == c )
-				return EXIT_FAILURE;
+				continue;
 
-			printf("fetched out chunk at %u,%u\n", i, j);
+			//printf("fetched out chunk at %u,%u\n", i, j);
 
 #if 0
-			if ( !chunk_solid(c, 8) )
+			if ( i == 0 && j == 0 && !chunk_solid(c, 56) )
 				return EXIT_FAILURE;
 			printf("Set to solid diamond ore\n");
 #endif
 
+			chunk_strip_entities(c);
+
 			if ( !region_set_chunk(dst, i, j, c) )
 				return EXIT_FAILURE;
 
-			printf("chunk set to %u,%u in test.mcr\n", i, j);
+			region_set_timestamp(dst, i, j,
+					region_get_timestamp(src, i, j));
+			//printf("chunk set to %u,%u in test.mcr\n", i, j);
 		}
 	}
 
 	if ( !region_save(dst) )
 		return EXIT_FAILURE;
 
-	printf("test.mcr saved\n");
+	printf("%s saved\n", argv[2]);
 
 	region_close(src);
 	region_close(dst);
