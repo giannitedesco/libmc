@@ -20,7 +20,7 @@ struct _chunk {
 	nbt_tag_t level;
 };
 
-int chunk_floor(chunk_t c, unsigned int blk)
+int chunk_floor(chunk_t c, uint8_t y, unsigned int blk)
 {
 	unsigned int x, z;
 	uint8_t *buf;
@@ -32,7 +32,7 @@ int chunk_floor(chunk_t c, unsigned int blk)
 
 	for(x = 0; x < CHUNK_X; x++) {
 		for(z = 0; z < CHUNK_Z; z++) {
-			buf[(z * CHUNK_Y) + (x * CHUNK_Y * CHUNK_Z)] = blk;
+			buf[(x * CHUNK_Y * CHUNK_Z) + (z * CHUNK_Y) + y] = blk;
 		}
 	}
 

@@ -24,6 +24,6 @@ uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz);
 /* higher-level operations */
 int chunk_strip_entities(chunk_t c);
 int chunk_solid(chunk_t c, unsigned int blk);
-int chunk_floor(chunk_t c, unsigned int blk);
+int chunk_floor(chunk_t c, uint8_t y, unsigned int blk);
 
 #endif /* _CHUNK_H */
