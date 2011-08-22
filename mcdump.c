@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 
 	printf("Opened dimension: %s\n", argv[1]);
 
-	r = dim_get_region(d, 0, 0);
+	r = dim_get_region(d, 0, -1);
 	if ( NULL == r )
 		return EXIT_FAILURE;
 

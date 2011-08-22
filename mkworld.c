@@ -9,66 +9,60 @@
 #include <stdio.h>
 
 #include <unistd.h>
+#include <time.h>
 
 #include <libmc/chunk.h>
 #include <libmc/region.h>
 
 int main(int argc, char **argv)
 {
-	region_t src, dst;
+	region_t dst;
 	unsigned int i, j;
 	chunk_t c;
+	time_t ts = time(NULL);
 
-	if ( argc < 3 ) {
-		fprintf(stderr, "Usage:\n\t%s <src> <dst>\n",
+	if ( argc < 2 ) {
+		fprintf(stderr, "Usage:\n\t%s <dst>\n",
 			argv[0]);
 		return EXIT_FAILURE;
 	}
 
-	src = region_open(argv[1]);
-	if ( NULL == src )
-		return EXIT_FAILURE;
-	
-	printf("%s opened for reading\n", argv[1]);
-
-	dst = region_new(argv[2]);
+	dst = region_new(argv[1]);
 	if ( NULL == dst )
 		return EXIT_FAILURE;
 
-	printf("%s opened for writing\n", argv[2]);
+	printf("%s opened for writing\n", argv[1]);
+
+	c = chunk_new();
+	if ( NULL == c )
+		return EXIT_FAILURE;
+
+#if 1
+	if ( !chunk_solid(c, 57) )
+		return EXIT_FAILURE;
+	printf("Set to solid diamond ore\n");
+#endif
 
 	for(i = 0; i < REGION_X; i++) {
 		for(j = 0; j < REGION_Z; j++) {
-			//printf("fetched out chunk at %u,%u\n", i, j);
-
-			c = region_get_chunk(src, i, j);
-			if ( NULL == c )
-				continue;
-
-#if 0
-			if ( i == 0 && j == 0 && !chunk_solid(c, 56) )
+			if ( !chunk_set_pos(c, i, j) )
 				return EXIT_FAILURE;
-			printf("Set to solid diamond ore\n");
-#endif
-
-			chunk_strip_entities(c);
 
 			if ( !region_set_chunk(dst, i, j, c) )
 				return EXIT_FAILURE;
 
-			region_set_timestamp(dst, i, j,
-					region_get_timestamp(src, i, j));
+			region_set_timestamp(dst, i, j, ts);
 			//printf("chunk set to %u,%u in test.mcr\n", i, j);
-			chunk_put(c);
 		}
 	}
+
+	chunk_put(c);
 
 	if ( !region_save(dst) )
 		return EXIT_FAILURE;
 
-	printf("%s saved\n", argv[2]);
+	printf("%s saved\n", argv[1]);
 
-	region_put(src);
 	region_put(dst);
 	printf("Done.\n");
 	return EXIT_SUCCESS;

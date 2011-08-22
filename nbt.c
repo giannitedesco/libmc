@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>
 
 #include <libmc/nbt.h>
 
@@ -349,22 +350,6 @@ nbt_tag_t nbt_root_tag(nbt_t nbt)
 	return &nbt->root;
 }
 
-nbt_tag_t nbt_compound_get_child(nbt_tag_t t, const char *name)
-{
-	struct nbt_tag *c;
-
-	if (NULL == t || t->t_type != NBT_TAG_Compound)
-		return NULL;
-
-	list_for_each_entry(c, &t->t_u.t_compound, t_list) {
-		if ( !strcmp(c->t_name, name) ) {
-			return c;
-		}
-	}
-
-	return NULL;
-}
-
 int nbt_byte_get(nbt_tag_t t, uint8_t *val)
 {
 	if (NULL == t || t->t_type != NBT_TAG_Byte)
@@ -414,15 +399,166 @@ int nbt_string_get(nbt_tag_t t, char **val)
 	return 1;
 }
 
-int nbt_list_get(nbt_tag_t t, unsigned idx, nbt_tag_t *val)
+nbt_tag_t nbt_list_get(nbt_tag_t t, unsigned idx)
 {
 	if (NULL == t || t->t_type != NBT_TAG_List)
 		return 0;
 	if ( idx >= (unsigned)t->t_u.t_list.len )
 		return 0;
-	*val = t->t_u.t_list.array[idx];
+	return t->t_u.t_list.array[idx];
+}
+
+int nbt_list_get_size(nbt_tag_t t)
+{
+	if (NULL == t || t->t_type != NBT_TAG_List)
+		return -1;
+	return t->t_u.t_list.len;
+}
+
+nbt_tag_t nbt_compound_get(nbt_tag_t t, const char *name)
+{
+	struct nbt_tag *c;
+
+	if (NULL == t || t->t_type != NBT_TAG_Compound)
+		return NULL;
+
+	list_for_each_entry(c, &t->t_u.t_compound, t_list) {
+		if ( !strcmp(c->t_name, name) ) {
+			return c;
+		}
+	}
+
+	return NULL;
+}
+
+int nbt_byte_set(nbt_tag_t t, uint8_t val)
+{
+	if ( NULL == t || t->t_type != NBT_TAG_Byte )
+		return 0;
+	t->t_u.t_byte = val;
 	return 1;
 }
+
+int nbt_short_set(nbt_tag_t t, int16_t val)
+{
+	if ( NULL == t || t->t_type != NBT_TAG_Short )
+		return 0;
+	t->t_u.t_short = val;
+	return 1;
+}
+
+int nbt_int_set(nbt_tag_t t, int32_t val)
+{
+	if ( NULL == t || t->t_type != NBT_TAG_Int )
+		return 0;
+	t->t_u.t_int = val;
+	return 1;
+}
+
+int nbt_long_set(nbt_tag_t t, int64_t val)
+{
+	if ( NULL == t || t->t_type != NBT_TAG_Long )
+		return 0;
+	t->t_u.t_long = val;
+	return 1;
+}
+
+int nbt_buffer_set(nbt_tag_t t, uint8_t *bytes, size_t sz)
+{
+	uint8_t *buf;
+
+	if ( NULL == t || t->t_type != NBT_TAG_Byte_Array )
+		return 0;
+	
+	buf = malloc(sz);
+	if ( NULL == buf )
+		return 0;
+
+	free(t->t_u.t_blob.array);
+	memcpy(buf, bytes, sz);
+	t->t_u.t_blob.array = buf;
+	t->t_u.t_blob.len = sz;
+
+	return 1;
+}
+
+int nbt_string_set(nbt_tag_t t, char *val)
+{
+	char *str;
+
+	if ( NULL == t || t->t_type != NBT_TAG_String )
+		return 0;
+
+	str = strdup(val);
+	if ( NULL == str )
+		return 0;
+
+	free(t->t_u.t_str);
+	t->t_u.t_str = str;
+
+	return 1;
+}
+
+int nbt_list_set(nbt_tag_t t, unsigned idx, nbt_tag_t val)
+{
+	if ( NULL == t || t->t_type != NBT_TAG_List )
+		return 0;
+	if ( val->t_type != t->t_u.t_list.type )
+		return 0;
+	if ( idx > INT_MAX || (unsigned)t->t_u.t_list.len <= idx )
+		return 0;
+	/* TODO: list set */
+	return 1;
+
+}
+
+int nbt_list_set_size(nbt_tag_t t, unsigned sz)
+{
+	if ( NULL == t || t->t_type != NBT_TAG_List )
+		return 0;
+	/* must be newly created or nuked */
+	if ( t->t_u.t_list.len )
+		return 0;
+	/* TODO: list set size */
+	return 1;
+}
+
+int nbt_compound_delete(nbt_tag_t t, const char *key)
+{
+	struct nbt_tag *c;
+
+	if ( NULL == t || t->t_type != NBT_TAG_Compound )
+		return 0;
+
+	list_for_each_entry(c, &t->t_u.t_compound, t_list) {
+		if ( !strcmp(c->t_name, key) ) {
+			list_del(&t->t_list);
+			free_nbt_data(c);
+			return 1;
+		}
+	}
+
+	return 1;
+}
+
+int nbt_compound_set(nbt_tag_t t, const char *key, nbt_tag_t val)
+{
+	char *name;
+
+	if ( NULL == t || t->t_type != NBT_TAG_Compound )
+		return 0;
+
+	name = strdup(key);
+	if ( NULL == name )
+		return 0;
+
+	free(val->t_name);
+	val->t_name = name;
+	nbt_compound_delete(t, key);
+	list_add_tail(&val->t_list, &t->t_u.t_compound);
+	return 1;
+}
+
 
 int nbt_list_nuke(nbt_tag_t t)
 {
@@ -440,11 +576,55 @@ int nbt_list_nuke(nbt_tag_t t)
 	return 1;
 }
 
-int nbt_list_size(nbt_tag_t t)
+int nbt_compound_nuke(nbt_tag_t t)
 {
-	if (NULL == t || t->t_type != NBT_TAG_List)
-		return -1;
-	return t->t_u.t_list.len;
+	if (NULL == t || t->t_type != NBT_TAG_Compound)
+		return 0;
+
+	/* TODO: compound nuke */
+	return 1;
+}
+
+static struct nbt_tag *new_node(struct _nbt *nbt, uint8_t type,
+				uint8_t list_type)
+{
+	struct nbt_tag *tag;
+
+	if ( type >= NBT_TAG_MAX )
+		return NULL;
+
+	/* use nbt_tag_new_list instead */
+	if ( type == NBT_TAG_List && list_type == NBT_TAG_End )
+		return NULL;
+
+	tag = hgang_alloc0(nbt->nodes);
+	if ( NULL == tag )
+		return NULL;
+
+	tag->t_type = type;
+
+	/* type specific initialisation */
+	switch(tag->t_type) {
+	case NBT_TAG_Compound:
+		INIT_LIST_HEAD(&tag->t_u.t_compound);
+	case NBT_TAG_List:
+		tag->t_u.t_list.type = list_type;
+		break;
+	default:
+		break;
+	}
+
+	return tag;
+}
+
+nbt_tag_t nbt_tag_new(nbt_t nbt, uint8_t type)
+{
+	return new_node(nbt, type, NBT_TAG_End);
+}
+
+nbt_tag_t nbt_tag_new_list(nbt_t nbt, uint8_t type)
+{
+	return new_node(nbt, NBT_TAG_List, type);
 }
 
 char *nbt_tag_name(nbt_tag_t t)
@@ -625,9 +805,8 @@ int nbt_get_bytes(nbt_t nbt, uint8_t *buf, size_t len)
 	return do_get_bytes(&nbt->root, TAG_NAMED, pptr, buf + len);
 }
 
-nbt_t nbt_decode(const uint8_t *buf, size_t len)
+static struct _nbt *create_nbt(void)
 {
-	const uint8_t *ptr;
 	struct _nbt *nbt;
 
 	nbt = calloc(1, sizeof(*nbt));
@@ -638,19 +817,48 @@ nbt_t nbt_decode(const uint8_t *buf, size_t len)
 	if ( NULL == nbt->nodes )
 		goto out_free;
 
-	ptr = decode_tag(nbt, buf, len, &nbt->root, TAG_NAMED);
-	if ( NULL == ptr )
-		goto out_free_all;
-
 	goto out;
 
-out_free_all:
-	free_nbt_data(&nbt->root);
-	hgang_free(nbt->nodes);
 out_free:
 	free(nbt);
 	nbt = NULL;
 out:
+	return nbt;
+}
+
+nbt_t nbt_decode(const uint8_t *buf, size_t len)
+{
+	const uint8_t *ptr;
+	struct _nbt *nbt;
+
+	nbt = create_nbt();
+	if ( NULL == nbt )
+		return NULL;
+
+	ptr = decode_tag(nbt, buf, len, &nbt->root, TAG_NAMED);
+	if ( NULL == ptr ) {
+		nbt_free(nbt);
+		return NULL;
+	}
+
+	return nbt;
+}
+
+nbt_t nbt_new(void)
+{
+	struct _nbt *nbt;
+
+	nbt = create_nbt();
+	if ( NULL == nbt )
+		return NULL;
+
+	nbt->root.t_type = NBT_TAG_Compound;
+	nbt->root.t_name = strdup("");
+	if ( NULL == nbt->root.t_name ) {
+		nbt_free(nbt);
+		return NULL;
+	}
+	INIT_LIST_HEAD(&nbt->root.t_u.t_compound);
 	return nbt;
 }
 

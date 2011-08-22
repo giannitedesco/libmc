@@ -25,27 +25,27 @@ int chunk_solid(chunk_t c, unsigned int blk)
 	uint8_t *buf;
 	size_t len;
 
-	if ( !nbt_buffer_get(nbt_compound_get_child(c->level, "Blocks"),
+	if ( !nbt_buffer_get(nbt_compound_get(c->level, "Blocks"),
 				&buf, &len) )
 		return 0;
 	memset(buf, blk, len);
 
-	if ( !nbt_buffer_get(nbt_compound_get_child(c->level, "Data"),
+	if ( !nbt_buffer_get(nbt_compound_get(c->level, "Data"),
 				&buf, &len) )
 		return 0;
 	memset(buf, 0, len);
 
-	if ( !nbt_buffer_get(nbt_compound_get_child(c->level, "HeightMap"),
+	if ( !nbt_buffer_get(nbt_compound_get(c->level, "HeightMap"),
 				&buf, &len) )
 		return 0;
 	memset(buf, 0xff, len);
 
-	if ( !nbt_buffer_get(nbt_compound_get_child(c->level, "SkyLight"),
+	if ( !nbt_buffer_get(nbt_compound_get(c->level, "SkyLight"),
 				&buf, &len) )
 		return 0;
 	memset(buf, 0xff, len);
 
-	if ( !nbt_buffer_get(nbt_compound_get_child(c->level, "BlockLight"),
+	if ( !nbt_buffer_get(nbt_compound_get(c->level, "BlockLight"),
 				&buf, &len) )
 		return 0;
 	memset(buf, 0x0, len);
@@ -113,11 +113,167 @@ int chunk_strip_entities(chunk_t c)
 	nbt_tag_t ents;
 	int rc = 1;
 
-	ents = nbt_compound_get_child(c->level, "Entities");
+	ents = nbt_compound_get(c->level, "Entities");
 	if ( !nbt_list_nuke(ents) )
 		rc = 0;
 
 	return rc;
+}
+
+int chunk_set_pos(chunk_t c, uint8_t x, uint8_t z)
+{
+	return 1;
+}
+
+static int create_int_keys(nbt_t nbt, nbt_tag_t level)
+{
+	static const char * const names[] = {
+		"LastUpdate",
+		"xPos",
+		"zPos",
+		"TerrainPopulated",
+	};
+	static const uint8_t types[] = {
+		NBT_TAG_Long,
+		NBT_TAG_Int,
+		NBT_TAG_Int,
+		NBT_TAG_Byte,
+	};
+	unsigned int i;
+
+	for(i = 0; i < sizeof(names)/sizeof(*names); i++) {
+		nbt_tag_t tag;
+		tag = nbt_tag_new(nbt, types[i]);
+		if ( NULL == tag )
+			return 0;
+		if ( !nbt_compound_set(level, names[i], tag) )
+			return 0;
+	}
+	return 1;
+}
+
+static int create_blob_keys(nbt_t nbt, nbt_tag_t level)
+{
+	static const char * const names[] = {
+		"Data",
+		"SkyLight",
+		"HeightMap",
+		"BlockLight",
+		"Blocks",
+	};
+	static const size_t sizes[] = {
+		16384U,
+		16384U,
+		256U,
+		16384U,
+		32768U,
+	};
+	size_t max = 32768U;
+	unsigned int i;
+	uint8_t *buf;
+	int rc = 0;
+
+	buf = calloc(1, max);
+	if ( NULL == buf )
+		return 0;
+
+	for(i = 0; i < sizeof(names)/sizeof(*names); i++) {
+		nbt_tag_t tag;
+		tag = nbt_tag_new(nbt, NBT_TAG_Byte_Array);
+		if ( NULL == tag )
+			goto out;
+		if ( !nbt_buffer_set(tag, buf, sizes[i]) )
+			goto out;
+		if ( !nbt_compound_set(level, names[i], tag) )
+			goto out;
+	}
+
+	rc = 1;
+
+out:
+	free(buf);
+	return rc;
+}
+
+static int create_list_keys(nbt_t nbt, nbt_tag_t level)
+{
+	static const char * const names[] = {
+		"Entities",
+		"TileEntities",
+	};
+	static const uint8_t types[] = {
+		NBT_TAG_Compound,
+		NBT_TAG_Compound,
+	};
+	unsigned int i;
+
+	for(i = 0; i < sizeof(names)/sizeof(*names); i++) {
+		nbt_tag_t tag;
+		tag = nbt_tag_new_list(nbt, types[i]);
+		if ( NULL == tag )
+			return 0;
+		if ( !nbt_compound_set(level, names[i], tag) )
+			return 0;
+	}
+	return 1;
+}
+
+static nbt_tag_t create_chunk_keys(nbt_t nbt)
+{
+	nbt_tag_t level;
+	nbt_tag_t root;
+
+	root = nbt_root_tag(nbt);
+	if ( NULL == root )
+		return NULL;
+
+	level = nbt_tag_new(nbt, NBT_TAG_Compound);
+	if ( NULL == level )
+		return NULL;
+
+	if ( !nbt_compound_set(root, "Level", level) )
+		return NULL;
+
+	if ( !create_int_keys(nbt, level) )
+		return NULL;
+	if ( !create_blob_keys(nbt, level) )
+		return NULL;
+	if ( !create_list_keys(nbt, level) )
+		return NULL;
+
+	return level;
+}
+
+chunk_t chunk_new(void)
+{
+	struct _chunk *c;
+
+	c = calloc(1, sizeof(*c));
+	if ( NULL == c )
+		goto out;
+
+	c->nbt = nbt_new();
+	if ( NULL == c->nbt )
+		goto out_free;
+
+	c->level = create_chunk_keys(c->nbt);
+	if ( NULL == c->level )
+		goto out_free_nbt;
+
+	printf("Created blank chunk\n");
+	nbt_dump(c->nbt);
+	printf("\n");
+
+	c->ref = 1;
+	goto out;
+
+out_free_nbt:
+	nbt_free(c->nbt);
+out_free:
+	free(c);
+	c = NULL;
+out:
+	return c;
 }
 
 chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
@@ -133,20 +289,22 @@ chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 	if ( NULL == c->nbt )
 		goto out_free;
 
-	//nbt_dump(c->nbt);
-	//printf("decoded %zu bytes of chunk data\n", sz);
-
 	root = nbt_root_tag(c->nbt);
 	if ( NULL == root )
-		goto out_free;
+		goto out_free_nbt;
 
-	c->level = nbt_compound_get_child(root, "Level");
+	c->level = nbt_compound_get(root, "Level");
 	if ( NULL == c->level )
-		goto out_free;
+		goto out_free_nbt;
+
+	nbt_dump(c->nbt);
+	//printf("decoded %zu bytes of chunk data\n", sz);
 
 	c->ref = 1;
 	goto out;
 
+out_free_nbt:
+	nbt_free(c->nbt);
 out_free:
 	free(c);
 	c = NULL;

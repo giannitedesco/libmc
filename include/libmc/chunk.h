@@ -11,6 +11,8 @@
 typedef struct _chunk *chunk_t;
 
 chunk_t chunk_from_bytes(uint8_t *buf, size_t sz);
+chunk_t chunk_new(void);
+int chunk_set_pos(chunk_t c, uint8_t x, uint8_t z);
 uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz);
 int chunk_strip_entities(chunk_t c);
 chunk_t chunk_get(chunk_t c);
