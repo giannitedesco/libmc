@@ -249,14 +249,12 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 	}
 
 	ptr = region_decompress(ptr, len, &dlen);
-	if ( NULL == ptr ) {
-		goto err_free;
-	}
+	free(buf);
+	if ( NULL == ptr )
+		goto err;
 
-	/* chunk now owns ptr */
 	c = chunk_from_bytes(ptr, dlen);
 	free(ptr);
-	free(buf);
 
 	/* don't increment refcount because we don't
 	 * keep a reference to it, this belongs to caller
@@ -264,6 +262,7 @@ chunk_t region_get_chunk(region_t r, uint8_t x, uint8_t z)
 	return c;
 err_free:
 	free(buf);
+err:
 	return NULL;
 }
 
