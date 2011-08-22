@@ -43,13 +43,12 @@ int main(int argc, char **argv)
 	if ( !chunk_set_terrain_populated(c, 1) )
 		return EXIT_FAILURE;
 
-	if ( !chunk_floor(c, 0, 7) )
-		return EXIT_FAILURE;
-	if ( !chunk_floor(c, 1, 8) )
-		return EXIT_FAILURE;
-	if ( !chunk_floor(c, 2, 8) )
-		return EXIT_FAILURE;
-	printf("Set to solid diamond ore\n");
+	chunk_floor(c, 0, 7);
+	chunk_floor(c, 1, 3);
+	chunk_floor(c, 2, 3);
+	chunk_floor(c, 3, 2);
+
+	printf("Created world floor\n");
 
 	for(i = 0; i < REGION_X; i++) {
 		for(j = 0; j < REGION_Z; j++) {
