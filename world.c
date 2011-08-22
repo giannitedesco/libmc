@@ -47,7 +47,7 @@ static int gunzip(const char *path, uint8_t **begin, size_t *osz)
 	if ( fd < 0 )
 		goto out;
 
-	/* grap decompressed len from gzip trailer, eugh */
+	/* grab decompressed len from gzip trailer, eugh */
 	if ( lseek(fd, -sizeof(d), SEEK_END) < 0 )
 		goto out_close;
 	if ( read(fd, &d, sizeof(d)) != sizeof(d) )

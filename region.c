@@ -40,12 +40,12 @@ struct rchunk_hdr {
 } __attribute__((packed));
 
 struct _region {
-	char *path;
-	unsigned int ref;
-	int fd;
 	uint32_t locs[REGION_X * REGION_Z];
 	uint32_t ts[REGION_X * REGION_Z];
 	chunk_t chunks[REGION_X * REGION_Z];
+	char *path;
+	unsigned int ref;
+	int fd;
 	uint8_t dirty;
 };
 
@@ -338,10 +338,15 @@ int region_save(region_t r)
 			chunk_put(r->chunks[i]);
 			r->chunks[i] = NULL;
 		}else if ( r->locs[i] ) {
-			/* copy existing */
+			/* TODO: copy existing */
 		}
 	}
 
+	/* up-truncate the file so we don't get EOF when
+	 * reading final chunk as multiples of the internal
+	 * page-size. We didn't write padding because we want
+	 * the file to be sparse if possible.
+	*/
 	if ( ftruncate(fd, pgno << INTERNAL_CHUNK_SHIFT) )
 		goto out_close;
 
