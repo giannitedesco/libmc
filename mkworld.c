@@ -20,9 +20,10 @@ int main(int argc, char **argv)
 	unsigned int i, j;
 	chunk_t c;
 	time_t ts = time(NULL);
+	int x, z;
 
-	if ( argc < 2 ) {
-		fprintf(stderr, "Usage:\n\t%s <dst>\n",
+	if ( argc < 3 || sscanf(argv[2], "%d,%d", &x, &z) != 2 ) {
+		fprintf(stderr, "Usage:\n\t%s <dst> <x,z>\n",
 			argv[0]);
 		return EXIT_FAILURE;
 	}
@@ -30,6 +31,8 @@ int main(int argc, char **argv)
 	dst = region_new(argv[1]);
 	if ( NULL == dst )
 		return EXIT_FAILURE;
+
+	region_set_pos(dst, x, z);
 
 	printf("%s opened for writing\n", argv[1]);
 

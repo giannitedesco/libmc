@@ -46,6 +46,7 @@ struct _region {
 	char *path;
 	unsigned int ref;
 	int fd;
+	int32_t x, z;
 	uint8_t dirty;
 };
 
@@ -107,6 +108,12 @@ out_free:
 	r = NULL;
 out:
 	return r;
+}
+
+void region_set_pos(region_t r, int32_t x, int32_t z)
+{
+	r->x = x;
+	r->z = z;
 }
 
 static int chunk_lookup(struct _region *r, uint8_t x, uint8_t z,
@@ -300,9 +307,12 @@ int region_save(region_t r)
 		if ( r->chunks[i] ) {
 			size_t clen, tlen;
 			uint8_t *cbuf, *buf, *ptr;
+			int32_t x, z;
 
-			if ( !chunk_set_pos(r->chunks[i],
-						i / REGION_X, i % REGION_Z) )
+			x = (r->x * REGION_X) + (i % REGION_X);
+			z = (r->z * REGION_Z) + (i / REGION_X);
+
+			if ( !chunk_set_pos(r->chunks[i], x, z) )
 				goto out_close;
 
 			/* get compressed chunk data */
