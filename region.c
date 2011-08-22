@@ -301,6 +301,10 @@ int region_save(region_t r)
 			size_t clen, tlen;
 			uint8_t *cbuf, *buf, *ptr;
 
+			if ( !chunk_set_pos(r->chunks[i],
+						i / REGION_X, i % REGION_Z) )
+				goto out_close;
+
 			/* get compressed chunk data */
 			cbuf = chunk_encode(r->chunks[i],
 						CHUNK_ENC_ZLIB, &clen);

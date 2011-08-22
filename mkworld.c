@@ -37,17 +37,15 @@ int main(int argc, char **argv)
 	if ( NULL == c )
 		return EXIT_FAILURE;
 
-#if 1
-	if ( !chunk_solid(c, 57) )
+	if ( !chunk_set_terrain_populated(c, 1) )
+		return EXIT_FAILURE;
+
+	if ( !chunk_floor(c, 7) )
 		return EXIT_FAILURE;
 	printf("Set to solid diamond ore\n");
-#endif
 
 	for(i = 0; i < REGION_X; i++) {
 		for(j = 0; j < REGION_Z; j++) {
-			if ( !chunk_set_pos(c, i, j) )
-				return EXIT_FAILURE;
-
 			if ( !region_set_chunk(dst, i, j, c) )
 				return EXIT_FAILURE;
 

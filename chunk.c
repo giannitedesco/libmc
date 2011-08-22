@@ -20,6 +20,40 @@ struct _chunk {
 	nbt_tag_t level;
 };
 
+int chunk_floor(chunk_t c, unsigned int blk)
+{
+	unsigned int x, z;
+	uint8_t *buf;
+	size_t len;
+
+	if ( !nbt_buffer_get(nbt_compound_get(c->level, "Blocks"),
+				&buf, &len) )
+		return 0;
+
+	for(x = 0; x < CHUNK_X; x++) {
+		for(z = 0; z < CHUNK_Z; z++) {
+			buf[(z * CHUNK_Y) + (x * CHUNK_Y * CHUNK_Z)] = blk;
+		}
+	}
+
+	if ( !nbt_buffer_get(nbt_compound_get(c->level, "HeightMap"),
+				&buf, &len) )
+		return 0;
+	memset(buf, 0x1, len);
+
+	if ( !nbt_buffer_get(nbt_compound_get(c->level, "SkyLight"),
+				&buf, &len) )
+		return 0;
+	memset(buf, 0xff, len);
+
+	if ( !nbt_buffer_get(nbt_compound_get(c->level, "BlockLight"),
+				&buf, &len) )
+		return 0;
+	memset(buf, 0x0, len);
+
+	return 1;
+}
+
 int chunk_solid(chunk_t c, unsigned int blk)
 {
 	uint8_t *buf;
@@ -120,9 +154,18 @@ int chunk_strip_entities(chunk_t c)
 	return rc;
 }
 
-int chunk_set_pos(chunk_t c, uint8_t x, uint8_t z)
+int chunk_set_pos(chunk_t c, int32_t x, int32_t z)
 {
+	if ( !nbt_int_set(nbt_compound_get(c->level, "xPos"), x) )
+		return 0;
+	if ( !nbt_int_set(nbt_compound_get(c->level, "zPos"), z) )
+		return 0;
 	return 1;
+}
+
+int chunk_set_terrain_populated(chunk_t c, uint32_t p)
+{
+	return nbt_byte_set(nbt_compound_get(c->level, "TerrainPopulated"), p);
 }
 
 static int create_int_keys(nbt_t nbt, nbt_tag_t level)
@@ -259,10 +302,6 @@ chunk_t chunk_new(void)
 	c->level = create_chunk_keys(c->nbt);
 	if ( NULL == c->level )
 		goto out_free_nbt;
-
-	printf("Created blank chunk\n");
-	nbt_dump(c->nbt);
-	printf("\n");
 
 	c->ref = 1;
 	goto out;

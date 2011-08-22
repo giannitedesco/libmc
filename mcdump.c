@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 
 	printf("Opened dimension: %s\n", argv[1]);
 
-	r = dim_get_region(d, 0, -1);
+	r = dim_get_region(d, -1, -1);
 	if ( NULL == r )
 		return EXIT_FAILURE;
 
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 			if ( NULL == c )
 				continue;
 
-			//printf("Got chunk x=%u, z=%u\n", x, z);
+			printf("Got chunk x=%u, z=%u\n", x, z);
 			chunk_put(c);
 		}
 	}
