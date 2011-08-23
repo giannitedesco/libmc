@@ -9,6 +9,7 @@
 #include <stdio.h>
 
 #include <unistd.h>
+#include <time.h>
 
 #include <libmc/chunk.h>
 #include <libmc/region.h>
@@ -19,46 +20,33 @@
 int main(int argc, char **argv)
 {
 	world_t w;
-	dim_t d;
-	region_t r;
-	uint8_t x, z;
+	level_t l;
 
-	if ( argc < 2 ) {
-		fprintf(stderr, "Usage:\n\t%s <save-game>\n",
+	if ( argc < 3) {
+		fprintf(stderr, "Usage:\n\t%s <dst> <name>\n",
 			argv[0]);
 		return EXIT_FAILURE;
 	}
 
-	w = world_open(argv[1]);
-	if ( w == NULL )
+	printf("mkworld called == %s %s\n", argv[1], argv[2]);
+	w = world_create();
+	if ( NULL == w )
 		return EXIT_FAILURE;
 
-	d = world_get_earth(w);
-	if ( NULL == d )
+	l = world_get_level(w);
+
+	if ( !level_set_name(l, argv[2]) )
+		return EXIT_FAILURE;
+	if ( !level_set_spawn(l, 0, 4, 0) )
 		return EXIT_FAILURE;
 
-	printf("Opened dimension: %s\n", argv[1]);
+	level_put(l);
 
-	r = dim_get_region(d, -1, 0);
-	if ( NULL == r )
+	printf("Saving world to %s\n", argv[1]);
+	if ( !world_save(w, argv[1]) )
 		return EXIT_FAILURE;
 
-	printf("Got region 0,0\n");
-	for(x = 0; x < REGION_X; x++) {
-		for(z = 0; z < REGION_Z; z++) {
-			chunk_t c;
-
-			c = region_get_chunk(r, x, z);
-			if ( NULL == c )
-				continue;
-
-			printf("Got chunk x=%u, z=%u\n", x, z);
-			chunk_put(c);
-		}
-	}
-
-	region_put(r);
 	world_close(w);
-
+	printf("Done.\n");
 	return EXIT_SUCCESS;
 }

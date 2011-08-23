@@ -102,7 +102,6 @@ level_t level_load(const char *path)
 	if ( NULL == l->data )
 		goto out_free;
 
-	nbt_dump(l->nbt);
 	l->ref = 1;
 	goto out;
 
@@ -161,7 +160,7 @@ static nbt_tag_t create_data_keys(nbt_t nbt)
 {
 	nbt_tag_t data;
 	nbt_tag_t root;
-	nbt_tag_t name;
+	nbt_tag_t name, ver;
 
 	root = nbt_root_tag(nbt);
 	if ( NULL == root )
@@ -184,6 +183,11 @@ static nbt_tag_t create_data_keys(nbt_t nbt)
 	if ( !nbt_compound_set(data, "LevelName", name) )
 		return NULL;
 
+	/* XXX: savegame format version */
+	ver = nbt_compound_get(data, "version");
+	if ( !nbt_int_set(ver, 19132) )
+		return NULL;
+
 	return data;
 }
 
@@ -203,7 +207,6 @@ level_t level_new(void)
 	if ( NULL == l->data )
 		goto out_free;
 	
-	nbt_dump(l->nbt);
 	l->ref = 1;
 	goto out;
 
@@ -229,7 +232,77 @@ level_t level_get(level_t l)
 
 void level_put(level_t l)
 {
-	printf("ref = %u\n", l->ref);
 	if ( 0 == --l->ref )
 		level_free(l);
+}
+
+int level_set_name(level_t l, const char *name)
+{
+	nbt_tag_t t;
+
+	t = nbt_compound_get(l->data, "LevelName");
+	if ( !nbt_string_set(t, name) )
+		return 0;
+
+	return 1;
+}
+
+int level_set_spawn(level_t l, int x, int y, int z)
+{
+	nbt_tag_t t;
+
+	t = nbt_compound_get(l->data, "SpawnX");
+	if ( !nbt_int_set(t, x) )
+		return 0;
+
+	t = nbt_compound_get(l->data, "SpawnY");
+	if ( !nbt_int_set(t, y) )
+		return 0;
+
+	t = nbt_compound_get(l->data, "SpawnZ");
+	if ( !nbt_int_set(t, z) )
+		return 0;
+
+	return 1;
+}
+
+int level_save(level_t l, const char *path)
+{
+	size_t sz;
+	uint8_t *buf;
+	gzFile gz;
+	int ret, fd, rc = 0;
+
+	nbt_dump(l->nbt);
+
+	fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0600);
+	if ( fd < 0 )
+		goto out;
+
+	gz = gzdopen(fd, "w");
+	if ( NULL == gz )
+		goto out_close;
+
+	sz = nbt_size_in_bytes(l->nbt);
+	buf = malloc(sz);
+	if ( NULL == buf )
+		goto out_gz;
+
+	if ( !nbt_get_bytes(l->nbt, buf, sz) )
+		goto out_free;
+
+	ret = gzwrite(gz, buf, sz);
+	if ( ret < 0 || (size_t)ret != sz )
+		goto out_free;
+
+	rc = 1;
+
+out_free:
+	free(buf);
+out_gz:
+	gzclose(gz);
+out_close:
+	close(fd);
+out:
+	return rc;
 }

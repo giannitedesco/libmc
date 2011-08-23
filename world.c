@@ -16,14 +16,15 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <zlib.h>
 
 #include <libmc/chunk.h>
 #include <libmc/region.h>
 #include <libmc/dim.h>
-#include <libmc/world.h>
 #include <libmc/level.h>
+#include <libmc/world.h>
 #include <libmc/nbt.h>
 
 struct _world {
@@ -85,6 +86,8 @@ world_t world_create(void)
 		goto out;
 
 	w->level_dat = level_new();
+	if ( NULL == w->level_dat )
+		goto out_free;
 
 	goto out;
 
@@ -98,6 +101,31 @@ out:
 	return w;
 }
 
+static int have_dir(const char *dir)
+{
+	if ( !mkdir(dir, 0700) || errno == EEXIST )
+		return 1;
+	return 0;
+}
+
+int world_save(world_t w, const char *dir)
+{
+	char *path;
+	int ret;
+
+	if ( !have_dir(dir) )
+		return 0;
+
+	if ( asprintf(&path, "%s/level.dat", dir) < 0 )
+		return 0;
+	ret = level_save(w->level_dat, path);
+	free(path);
+	if ( !ret )
+		return 0;
+
+	return 1;
+}
+
 dim_t world_get_earth(world_t w)
 {
 	return w->earth;
@@ -106,6 +134,11 @@ dim_t world_get_earth(world_t w)
 dim_t world_get_nether(world_t w)
 {
 	return w->nether;
+}
+
+level_t world_get_level(world_t w)
+{
+	return level_get(w->level_dat);
 }
 
 void world_close(world_t w)

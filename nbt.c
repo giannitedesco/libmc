@@ -482,7 +482,7 @@ int nbt_buffer_set(nbt_tag_t t, uint8_t *bytes, size_t sz)
 	return 1;
 }
 
-int nbt_string_set(nbt_tag_t t, char *val)
+int nbt_string_set(nbt_tag_t t, const char *val)
 {
 	char *str;
 

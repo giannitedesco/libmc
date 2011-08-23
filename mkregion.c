@@ -46,9 +46,9 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 
 	chunk_floor(c, 0, 7);
-	chunk_floor(c, 1, 3);
-	chunk_floor(c, 2, 3);
-	chunk_floor(c, 3, 2);
+	chunk_floor(c, 1, 1);
+	chunk_floor(c, 2, 1);
+	chunk_floor(c, 3, 1);
 
 	printf("Created world floor\n");
 

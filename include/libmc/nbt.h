@@ -48,7 +48,7 @@ int nbt_short_set(nbt_tag_t t, int16_t val);
 int nbt_int_set(nbt_tag_t t, int32_t val);
 int nbt_long_set(nbt_tag_t t, int64_t val);
 int nbt_buffer_set(nbt_tag_t t, uint8_t *bytes, size_t sz);
-int nbt_string_set(nbt_tag_t t, char *val);
+int nbt_string_set(nbt_tag_t t, const char *val);
 int nbt_list_set(nbt_tag_t t, unsigned idx, nbt_tag_t val);
 int nbt_list_set_size(nbt_tag_t t, unsigned sz);
 int nbt_compound_delete(nbt_tag_t t, const char *key);
