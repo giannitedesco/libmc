@@ -25,6 +25,7 @@ LIBMC_OBJ := world.o \
 		region.o \
 		chunk.o \
 		level.o \
+		schematic.o \
 		nbt.o \
 		hgang.o
 

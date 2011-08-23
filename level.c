@@ -62,12 +62,13 @@ static int gunzip(const char *path, uint8_t **begin, size_t *osz)
 	gzclose(gz);
 	if ( ret < 0 ) {
 		free(buf);
-		goto out_close;
+		goto out;
 	}
 
 	*begin = buf;
 	*osz = dlen;
 	rc = 1;
+	goto out;
 
 out_close:
 	close(fd);
