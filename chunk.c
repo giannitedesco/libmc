@@ -336,7 +336,7 @@ chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 	if ( NULL == c->level )
 		goto out_free_nbt;
 
-	nbt_dump(c->nbt);
+	//nbt_dump(c->nbt);
 	//printf("decoded %zu bytes of chunk data\n", sz);
 
 	c->ref = 1;
@@ -353,10 +353,8 @@ out:
 
 static void chunk_free(chunk_t c)
 {
-	if ( c ) {
-		nbt_free(c->nbt);
-		free(c);
-	}
+	nbt_free(c->nbt);
+	free(c);
 }
 
 void chunk_put(chunk_t c)

@@ -407,12 +407,10 @@ out:
 
 static void region_close(region_t r)
 {
-	if ( r ) {
-		free(r->path);
-		if ( r->fd >= 0 )
-			close(r->fd);
-		free(r);
-	}
+	free(r->path);
+	if ( r->fd >= 0 )
+		close(r->fd);
+	free(r);
 }
 
 void region_put(region_t r)

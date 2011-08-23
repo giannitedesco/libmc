@@ -28,6 +28,8 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
+	printf("mkregion called == %s %d,%d\n", argv[1], x, z);
+
 	dst = region_new(argv[1]);
 	if ( NULL == dst )
 		return EXIT_FAILURE;

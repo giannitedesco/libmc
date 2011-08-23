@@ -24,6 +24,7 @@ LIBMC_OBJ := world.o \
 		dim.o \
 		region.o \
 		chunk.o \
+		level.o \
 		nbt.o \
 		hgang.o
 
@@ -42,8 +43,15 @@ MKREGION_LIBS := -lz
 MKREGION_SLIBS := $(LIBMC_LIB)
 MKREGION_OBJ := mkregion.o
 
-ALL_BIN := $(MCDUMP_BIN) $(NBTDUMP_BIN) $(LIBMC_LIB) $(MKREGION_BIN)
-ALL_OBJ := $(MCDUMP_OBJ) $(NBTDUMP_OBJ) $(LIBMC_OBJ) $(MKREGION_OBJ)
+MKWORLD_BIN := mkworld
+MKWORLD_LIBS := -lz
+MKWORLD_SLIBS := $(LIBMC_LIB)
+MKWORLD_OBJ := mkworld.o
+
+ALL_BIN := $(MCDUMP_BIN) $(NBTDUMP_BIN) $(LIBMC_LIB) \
+		$(MKREGION_BIN) $(MKWORLD_BIN)
+ALL_OBJ := $(MCDUMP_OBJ) $(NBTDUMP_OBJ) $(LIBMC_OBJ) \
+		$(MKREGION_OBJ) $(MKWORLD_OBJ)
 ALL_DEP := $(patsubst %.o, .%.d, $(ALL_OBJ))
 ALL_TARGETS := $(ALL_BIN)
 
@@ -80,6 +88,10 @@ $(NBTDUMP_BIN): $(NBTDUMP_OBJ) $(NBTDUMP_SLIBS)
 $(MKREGION_BIN): $(MKREGION_OBJ) $(MKREGION_SLIBS)
 	@echo " [LINK] $@"
 	@$(CC) $(CFLAGS) -o $@ $^ $(MKREGION_LIBS)
+
+$(MKWORLD_BIN): $(MKWORLD_OBJ) $(MKWORLD_SLIBS)
+	@echo " [LINK] $@"
+	@$(CC) $(CFLAGS) -o $@ $^ $(MKWORLD_LIBS)
 
 clean:
 	$(DEL) $(ALL_TARGETS) $(ALL_OBJ) $(ALL_DEP)
