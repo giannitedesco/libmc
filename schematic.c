@@ -24,6 +24,7 @@
 struct _schematic {
 	nbt_t nbt;
 	nbt_tag_t schem;
+	int16_t x, y, z;
 	unsigned ref;
 };
 
@@ -78,51 +79,103 @@ out:
 
 schematic_t schematic_load(const char *path)
 {
-	struct _schematic *l;
+	struct _schematic *s;
 	uint8_t *buf;
 	size_t sz;
 
-	l = calloc(1, sizeof(*l));
-	if ( NULL == l )
+	s = calloc(1, sizeof(*s));
+	if ( NULL == s )
 		goto out;
 
 	if ( !gunzip(path, &buf, &sz) )
 		goto out_free;
 
-	l->nbt = nbt_decode(buf, sz);
+	s->nbt = nbt_decode(buf, sz);
 	free(buf);
-	if ( NULL == l->nbt )
+	if ( NULL == s->nbt )
 		goto out_free;
 
-	l->schem = nbt_root_tag(l->nbt);
-	if ( NULL == l->schem )
+	s->schem = nbt_root_tag(s->nbt);
+	if ( NULL == s->schem )
 		goto out_free;
 
-	l->ref = 1;
+	if ( !nbt_short_get(nbt_compound_get(s->schem, "Width"), &s->x) )
+		goto out_free;
+	if ( !nbt_short_get(nbt_compound_get(s->schem, "Height"), &s->y) )
+		goto out_free;
+	if ( !nbt_short_get(nbt_compound_get(s->schem, "Length"), &s->z) )
+		goto out_free;
+
+	if ( s->x < 0 || s->y < 0 || s->z < 0 )
+		goto out_free;
+
+	s->ref = 1;
 	goto out;
 
 out_free:
-	nbt_free(l->nbt);
-	free(l);
-	l = NULL;
+	nbt_free(s->nbt);
+	free(s);
+	s = NULL;
 out:
-	return l;
+	return s;
 }
 
-static void schematic_free(schematic_t l)
+static void schematic_free(schematic_t s)
 {
-	nbt_free(l->nbt);
-	free(l);
+	nbt_free(s->nbt);
+	free(s);
 }
 
-schematic_t schematic_get(schematic_t l)
+schematic_t schematic_get(schematic_t s)
 {
-	l->ref++;
-	return l;
+	s->ref++;
+	return s;
 }
 
-void schematic_put(schematic_t l)
+void schematic_put(schematic_t s)
 {
-	if ( 0 == --l->ref )
-		schematic_free(l);
+	if ( 0 == --s->ref )
+		schematic_free(s);
+}
+
+void schematic_get_size(schematic_t s, int16_t *x, int16_t *y, int16_t *z)
+{
+	if ( x )
+		*x = s->x;
+	if ( y )
+		*y = s->y;
+	if ( z )
+		*z = s->z;
+}
+
+uint8_t *schematic_get_blocks(schematic_t s)
+{
+	uint8_t *buf;
+	size_t sz;
+
+	if ( !nbt_buffer_get(nbt_compound_get(s->schem, "Blocks"), &buf, &sz) )
+		return NULL;
+
+	if ( sz != (size_t)((s->x * s->y * s->z)) ) {
+		fprintf(stderr, "schematic: bad blocks size\n");
+		return NULL;
+	}
+
+	return buf;
+}
+
+uint8_t *schematic_get_data(schematic_t s)
+{
+	uint8_t *buf;
+	size_t sz;
+
+	if ( !nbt_buffer_get(nbt_compound_get(s->schem, "Data"), &buf, &sz) )
+		return NULL;
+
+	if ( sz != (size_t)((s->x * s->y * s->z + 1) / 2) ) {
+		fprintf(stderr, "schematic: bad blocks size\n");
+		return NULL;
+	}
+
+	return buf;
 }

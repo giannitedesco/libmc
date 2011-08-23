@@ -12,12 +12,13 @@
 #include <time.h>
 
 #include <libmc/chunk.h>
+#include <libmc/schematic.h>
 #include <libmc/region.h>
 
 int main(int argc, char **argv)
 {
-	region_t dst;
 	unsigned int i, j;
+	region_t dst;
 	chunk_t c;
 	time_t ts = time(NULL);
 	int x, z;
@@ -29,6 +30,23 @@ int main(int argc, char **argv)
 	}
 
 	printf("mkregion called == %s %d,%d\n", argv[1], x, z);
+
+#if 0
+	do { 
+		schematic_t s;
+		int16_t x, y, z;
+		uint8_t *blocks, *data;
+
+		s = schematic_load("7seg.schematic");
+		if ( NULL == s )
+			return EXIT_FAILURE;
+
+		schematic_get_size(s, &x, &y, &z);
+		printf("schematic %d x %d x %d\n", x, y, z);
+		blocks = schematic_get_blocks(s);
+		data = schematic_get_blocks(s);
+	}while(0);
+#endif
 
 	dst = region_new(argv[1]);
 	if ( NULL == dst )
