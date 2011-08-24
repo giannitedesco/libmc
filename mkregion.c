@@ -21,6 +21,7 @@ static void schematic_to_chunk(schematic_t s, chunk_t c)
 	uint8_t *sb, *sd;
 	uint8_t *cb, *cd;
 	int16_t sx, sy, sz;
+	int zofs = 4;
 
 	schematic_get_size(s, &sx, &sy, &sz);
 	printf("schematic %d x %d x %d\n", sx, sy, sz);
@@ -36,12 +37,27 @@ static void schematic_to_chunk(schematic_t s, chunk_t c)
 		for(y = 0; y < sy; y++) {
 			for(z = 0; z < sz; z++) {
 				uint8_t in, *out;
+				unsigned int didx;
+				uint8_t din;
 
 				in = sb[(y * sz * sx) + (z * sx) + x];
 				out = &cb[(x * CHUNK_Y * CHUNK_Z) +
-						 (z * CHUNK_Y) + y + 3];
+						 (z * CHUNK_Y) + y + zofs];
 
 				*out = in;
+
+				didx = (y * sz * sx) + (z * sx) + x;
+				din = sd[didx];
+
+				didx = (x * CHUNK_Y * CHUNK_Z) +
+					(z * CHUNK_Y) + y + zofs;
+				if ( didx % 2 ) {
+					cd[didx/2] = (din << 4) |
+							(cd[didx/2] & 0x0f);
+				}else{
+					cd[didx/2] = (cd[didx/2] & 0xf0) |
+							din;
+				}
 			}
 		}
 	}
@@ -83,7 +99,7 @@ int main(int argc, char **argv)
 	chunk_floor(c, 2, 1);
 	chunk_floor(c, 3, 1);
 
-#if 0
+#if 1
 	do { 
 		schematic_t s;
 		s = schematic_load("7seg.schematic");
