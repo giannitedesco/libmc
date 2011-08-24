@@ -15,6 +15,38 @@
 #include <libmc/schematic.h>
 #include <libmc/region.h>
 
+static void schematic_to_chunk(schematic_t s, chunk_t c)
+{
+	int x, y, z;
+	uint8_t *sb, *sd;
+	uint8_t *cb, *cd;
+	int16_t sx, sy, sz;
+
+	schematic_get_size(s, &sx, &sy, &sz);
+	printf("schematic %d x %d x %d\n", sx, sy, sz);
+
+	sb = schematic_get_blocks(s);
+	sd = schematic_get_data(s);
+
+
+	cb = chunk_get_blocks(c);
+	cd = chunk_get_data(c);
+
+	for(x = 0; x < sx; x++) {
+		for(y = 0; y < sy; y++) {
+			for(z = 0; z < sz; z++) {
+				uint8_t in, *out;
+
+				in = sb[(y * sz * sx) + (z * sx) + x];
+				out = &cb[(x * CHUNK_Y * CHUNK_Z) +
+						 (z * CHUNK_Y) + y + 3];
+
+				*out = in;
+			}
+		}
+	}
+}
+
 int main(int argc, char **argv)
 {
 	unsigned int i, j;
@@ -30,23 +62,6 @@ int main(int argc, char **argv)
 	}
 
 	printf("mkregion called == %s %d,%d\n", argv[1], x, z);
-
-#if 0
-	do { 
-		schematic_t s;
-		int16_t x, y, z;
-		uint8_t *blocks, *data;
-
-		s = schematic_load("7seg.schematic");
-		if ( NULL == s )
-			return EXIT_FAILURE;
-
-		schematic_get_size(s, &x, &y, &z);
-		printf("schematic %d x %d x %d\n", x, y, z);
-		blocks = schematic_get_blocks(s);
-		data = schematic_get_blocks(s);
-	}while(0);
-#endif
 
 	dst = region_new(argv[1]);
 	if ( NULL == dst )
@@ -67,6 +82,15 @@ int main(int argc, char **argv)
 	chunk_floor(c, 1, 1);
 	chunk_floor(c, 2, 1);
 	chunk_floor(c, 3, 1);
+
+#if 0
+	do { 
+		schematic_t s;
+		s = schematic_load("7seg.schematic");
+		if ( s )
+			schematic_to_chunk(s, c);
+	}while(0);
+#endif
 
 	printf("Created world floor\n");
 

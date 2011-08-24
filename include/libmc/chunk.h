@@ -21,9 +21,15 @@ void chunk_put(chunk_t c);
 
 uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz);
 
+/* get blocks/data */
+uint8_t *chunk_get_blocks(chunk_t c);
+uint8_t *chunk_get_data(chunk_t c);
+
 /* higher-level operations */
 int chunk_strip_entities(chunk_t c);
 int chunk_solid(chunk_t c, unsigned int blk);
 int chunk_floor(chunk_t c, uint8_t y, unsigned int blk);
+
+/* TODO: proper re-lighting */
 
 #endif /* _CHUNK_H */

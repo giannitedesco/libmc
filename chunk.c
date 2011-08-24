@@ -14,6 +14,9 @@
 #include <libmc/chunk.h>
 #include <libmc/nbt.h>
 
+#define CHUNK_BLOCKS_SIZE (CHUNK_X * CHUNK_Y * CHUNK_Z)
+#define CHUNK_DATA_SIZE (CHUNK_BLOCKS_SIZE / 2)
+
 struct _chunk {
 	unsigned int ref;
 	nbt_t nbt;
@@ -85,6 +88,38 @@ int chunk_solid(chunk_t c, unsigned int blk)
 	memset(buf, 0x0, len);
 
 	return 1;
+}
+
+uint8_t *chunk_get_blocks(chunk_t c)
+{
+	uint8_t *buf;
+	size_t sz;
+
+	if ( !nbt_buffer_get(nbt_compound_get(c->level, "Blocks"), &buf, &sz) )
+		return NULL;
+
+	if ( sz != CHUNK_BLOCKS_SIZE ) {
+		fprintf(stderr, "chunk: bad blocks size\n");
+		return NULL;
+	}
+
+	return buf;
+}
+
+uint8_t *chunk_get_data(chunk_t c)
+{
+	uint8_t *buf;
+	size_t sz;
+
+	if ( !nbt_buffer_get(nbt_compound_get(c->level, "Data"), &buf, &sz) )
+		return NULL;
+
+	if ( sz != CHUNK_DATA_SIZE ) {
+		fprintf(stderr, "chunk: bad blocks size\n");
+		return NULL;
+	}
+
+	return buf;
 }
 
 static uint8_t *chunk_enc_raw(chunk_t c, size_t *sz)

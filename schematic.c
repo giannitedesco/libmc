@@ -172,7 +172,7 @@ uint8_t *schematic_get_data(schematic_t s)
 	if ( !nbt_buffer_get(nbt_compound_get(s->schem, "Data"), &buf, &sz) )
 		return NULL;
 
-	if ( sz != (size_t)((s->x * s->y * s->z + 1) / 2) ) {
+	if ( sz != (s->x * s->y * s->z + 1) ) {
 		fprintf(stderr, "schematic: bad blocks size\n");
 		return NULL;
 	}
