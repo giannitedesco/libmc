@@ -153,7 +153,7 @@ uint8_t *schematic_get_blocks(schematic_t s)
 	uint8_t *buf;
 	size_t sz;
 
-	if ( !nbt_buffer_get(nbt_compound_get(s->schem, "Blocks"), &buf, &sz) )
+	if ( !nbt_bytearray_get(nbt_compound_get(s->schem, "Blocks"), &buf, &sz) )
 		return NULL;
 
 	if ( sz != (size_t)((s->x * s->y * s->z)) ) {
@@ -169,7 +169,7 @@ uint8_t *schematic_get_data(schematic_t s)
 	uint8_t *buf;
 	size_t sz;
 
-	if ( !nbt_buffer_get(nbt_compound_get(s->schem, "Data"), &buf, &sz) )
+	if ( !nbt_bytearray_get(nbt_compound_get(s->schem, "Data"), &buf, &sz) )
 		return NULL;
 
 	if ( sz != (size_t)(s->x * s->y * s->z) ) {

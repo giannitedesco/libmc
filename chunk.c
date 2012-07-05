@@ -17,42 +17,137 @@
 #define CHUNK_BLOCKS_SIZE (CHUNK_X * CHUNK_Y * CHUNK_Z)
 #define CHUNK_DATA_SIZE (CHUNK_BLOCKS_SIZE / 2)
 
+#define CHUNK_NUM_SECTIONS	16
+#define CHUNK_SECTION_Y		(CHUNK_Y / CHUNK_NUM_SECTIONS)
+
 struct _chunk {
 	unsigned int ref;
 	nbt_t nbt;
 	nbt_tag_t level;
+	nbt_tag_t seclist;
+	nbt_tag_t section[CHUNK_NUM_SECTIONS];
 };
+
+static int create_section_blobs(nbt_t nbt, nbt_tag_t sec)
+{
+	static const char * const names[] = {
+		"Data",
+		"SkyLight",
+		"BlockLight",
+		"Blocks",
+	};
+	static const size_t sizes[] = {
+		2048U,
+		2048U,
+		2048U,
+		4096U,
+	};
+	size_t max = 4096U;
+	unsigned int i;
+	uint8_t *buf;
+	int rc = 0;
+
+	buf = calloc(1, max);
+	if ( NULL == buf )
+		return 0;
+
+	for(i = 0; i < sizeof(names)/sizeof(*names); i++) {
+		nbt_tag_t tag;
+		tag = nbt_tag_new(nbt, NBT_TAG_Byte_Array);
+		if ( NULL == tag )
+			goto out;
+		if ( !nbt_bytearray_set(tag, buf, sizes[i]) )
+			goto out;
+		if ( !nbt_compound_set(sec, names[i], tag) )
+			goto out;
+	}
+
+	rc = 1;
+
+out:
+	free(buf);
+	return rc;
+}
+
+static nbt_tag_t get_add_section(chunk_t c, uint8_t secno)
+{
+	if ( NULL == c->seclist ) {
+		nbt_tag_t list;
+		list = nbt_tag_new_list(c->nbt, NBT_TAG_Compound);
+		if ( NULL == list )
+			return NULL;
+
+		printf("HAI\n");
+		if ( !nbt_compound_set(c->level, "Sections", list) )
+			return NULL;
+
+		c->seclist = list;
+	}
+
+	if ( NULL == c->section[secno] ) {
+		nbt_tag_t sec, ytag;
+
+		sec = nbt_tag_new(c->nbt, NBT_TAG_Compound);
+		if ( NULL == sec )
+			return NULL;
+
+		if ( !nbt_list_append(c->seclist, sec) )
+			return NULL;
+
+		if ( !create_section_blobs(c->nbt, sec) )
+			return NULL;
+
+		ytag = nbt_tag_new(c->nbt, NBT_TAG_Byte);
+		if ( NULL == ytag )
+			return NULL;
+		if ( !nbt_byte_set(ytag, secno) )
+			return NULL;
+		if ( !nbt_compound_set(sec, "Y", ytag) )
+			return NULL;
+
+		c->section[secno] = sec;
+	}
+
+	return c->section[secno];
+}
 
 int chunk_floor(chunk_t c, uint8_t y, unsigned int blk)
 {
-	unsigned int x, z;
-	uint8_t *buf;
+	unsigned int x, z, i, num;
+	uint8_t *buf, secno, ty;
+	int32_t *hm;
+	nbt_tag_t s;
 	size_t len;
 
-	if ( !nbt_buffer_get(nbt_compound_get(c->level, "Blocks"),
+	secno = y / CHUNK_NUM_SECTIONS;
+
+	s = get_add_section(c, secno);
+	if ( NULL == s )
+		return 0;
+
+	ty = y - secno * CHUNK_SECTION_Y;
+
+	if ( !nbt_bytearray_get(nbt_compound_get(s, "Blocks"),
 				&buf, &len) )
 		return 0;
 
 	for(x = 0; x < CHUNK_X; x++) {
 		for(z = 0; z < CHUNK_Z; z++) {
-			buf[(x * CHUNK_Y * CHUNK_Z) + (z * CHUNK_Y) + y] = blk;
+			buf[(ty * CHUNK_Z * CHUNK_X) + (z * CHUNK_X) + x] = blk;
 		}
 	}
 
-	if ( !nbt_buffer_get(nbt_compound_get(c->level, "HeightMap"),
-				&buf, &len) )
+	if ( !nbt_intarray_get(nbt_compound_get(c->level, "HeightMap"),
+				&hm, &num) )
 		return 0;
-	memset(buf, 0x1, len);
+	for(i = 0; i < num; i++) {
+		hm[i] = htobe32(y);
+	}
 
-	if ( !nbt_buffer_get(nbt_compound_get(c->level, "SkyLight"),
+	if ( !nbt_bytearray_get(nbt_compound_get(s, "SkyLight"),
 				&buf, &len) )
 		return 0;
 	memset(buf, 0xff, len);
-
-	if ( !nbt_buffer_get(nbt_compound_get(c->level, "BlockLight"),
-				&buf, &len) )
-		return 0;
-	memset(buf, 0x0, len);
 
 	return 1;
 }
@@ -62,64 +157,17 @@ int chunk_solid(chunk_t c, unsigned int blk)
 	uint8_t *buf;
 	size_t len;
 
-	if ( !nbt_buffer_get(nbt_compound_get(c->level, "Blocks"),
+	if ( !nbt_bytearray_get(nbt_compound_get(c->level, "Blocks"),
 				&buf, &len) )
 		return 0;
 	memset(buf, blk, len);
 
-	if ( !nbt_buffer_get(nbt_compound_get(c->level, "Data"),
-				&buf, &len) )
-		return 0;
-	memset(buf, 0, len);
-
-	if ( !nbt_buffer_get(nbt_compound_get(c->level, "HeightMap"),
+	if ( !nbt_bytearray_get(nbt_compound_get(c->level, "HeightMap"),
 				&buf, &len) )
 		return 0;
 	memset(buf, 0xff, len);
-
-	if ( !nbt_buffer_get(nbt_compound_get(c->level, "SkyLight"),
-				&buf, &len) )
-		return 0;
-	memset(buf, 0xff, len);
-
-	if ( !nbt_buffer_get(nbt_compound_get(c->level, "BlockLight"),
-				&buf, &len) )
-		return 0;
-	memset(buf, 0x0, len);
 
 	return 1;
-}
-
-uint8_t *chunk_get_blocks(chunk_t c)
-{
-	uint8_t *buf;
-	size_t sz;
-
-	if ( !nbt_buffer_get(nbt_compound_get(c->level, "Blocks"), &buf, &sz) )
-		return NULL;
-
-	if ( sz != CHUNK_BLOCKS_SIZE ) {
-		fprintf(stderr, "chunk: bad blocks size\n");
-		return NULL;
-	}
-
-	return buf;
-}
-
-uint8_t *chunk_get_data(chunk_t c)
-{
-	uint8_t *buf;
-	size_t sz;
-
-	if ( !nbt_buffer_get(nbt_compound_get(c->level, "Data"), &buf, &sz) )
-		return NULL;
-
-	if ( sz != CHUNK_DATA_SIZE ) {
-		fprintf(stderr, "chunk: bad blocks size\n");
-		return NULL;
-	}
-
-	return buf;
 }
 
 static uint8_t *chunk_enc_raw(chunk_t c, size_t *sz)
@@ -198,9 +246,18 @@ int chunk_set_pos(chunk_t c, int32_t x, int32_t z)
 	return 1;
 }
 
-int chunk_set_terrain_populated(chunk_t c, uint32_t p)
+int chunk_set_terrain_populated(chunk_t c, uint8_t p)
 {
-	return nbt_byte_set(nbt_compound_get(c->level, "TerrainPopulated"), p);
+	nbt_tag_t tag;
+	tag = nbt_compound_get(c->level, "TerrainPopulated");
+	if ( NULL == tag ) {
+		tag = nbt_tag_new(c->nbt, NBT_TAG_Byte);
+		if ( NULL == tag )
+			return 0;
+		if ( !nbt_compound_set(c->level, "TerrainPopulated", tag) )
+			return 0;
+	}
+	return nbt_byte_set(tag, p);
 }
 
 static int create_int_keys(nbt_t nbt, nbt_tag_t level)
@@ -209,13 +266,11 @@ static int create_int_keys(nbt_t nbt, nbt_tag_t level)
 		"LastUpdate",
 		"xPos",
 		"zPos",
-		"TerrainPopulated",
 	};
 	static const uint8_t types[] = {
 		NBT_TAG_Long,
 		NBT_TAG_Int,
 		NBT_TAG_Int,
-		NBT_TAG_Byte,
 	};
 	unsigned int i;
 
@@ -233,20 +288,12 @@ static int create_int_keys(nbt_t nbt, nbt_tag_t level)
 static int create_blob_keys(nbt_t nbt, nbt_tag_t level)
 {
 	static const char * const names[] = {
-		"Data",
-		"SkyLight",
-		"HeightMap",
-		"BlockLight",
-		"Blocks",
+		"Biomes",
 	};
 	static const size_t sizes[] = {
-		16384U,
-		16384U,
 		256U,
-		16384U,
-		32768U,
 	};
-	size_t max = 32768U;
+	size_t max = 256U;
 	unsigned int i;
 	uint8_t *buf;
 	int rc = 0;
@@ -260,7 +307,42 @@ static int create_blob_keys(nbt_t nbt, nbt_tag_t level)
 		tag = nbt_tag_new(nbt, NBT_TAG_Byte_Array);
 		if ( NULL == tag )
 			goto out;
-		if ( !nbt_buffer_set(tag, buf, sizes[i]) )
+		if ( !nbt_bytearray_set(tag, buf, sizes[i]) )
+			goto out;
+		if ( !nbt_compound_set(level, names[i], tag) )
+			goto out;
+	}
+
+	rc = 1;
+
+out:
+	free(buf);
+	return rc;
+}
+
+static int create_int_array_keys(nbt_t nbt, nbt_tag_t level)
+{
+	static const char * const names[] = {
+		"HeightMap",
+	};
+	static const size_t sizes[] = {
+		256U,
+	};
+	size_t max = 256U;
+	unsigned int i;
+	int32_t *buf;
+	int rc = 0;
+
+	buf = calloc(1, max);
+	if ( NULL == buf )
+		return 0;
+
+	for(i = 0; i < sizeof(names)/sizeof(*names); i++) {
+		nbt_tag_t tag;
+		tag = nbt_tag_new(nbt, NBT_TAG_Int_Array);
+		if ( NULL == tag )
+			goto out;
+		if ( !nbt_intarray_set(tag, buf, sizes[i]) )
 			goto out;
 		if ( !nbt_compound_set(level, names[i], tag) )
 			goto out;
@@ -276,12 +358,14 @@ out:
 static int create_list_keys(nbt_t nbt, nbt_tag_t level)
 {
 	static const char * const names[] = {
-		"Entities",
 		"TileEntities",
+		"Entities",
+//		"Sections",
 	};
 	static const uint8_t types[] = {
-		NBT_TAG_Compound,
-		NBT_TAG_Compound,
+		NBT_TAG_Byte,
+		NBT_TAG_Byte,
+//		NBT_TAG_Compound,
 	};
 	unsigned int i;
 
@@ -314,10 +398,12 @@ static nbt_tag_t create_chunk_keys(nbt_t nbt)
 
 	if ( !create_int_keys(nbt, level) )
 		return NULL;
-	if ( !create_blob_keys(nbt, level) )
+	if ( !create_int_array_keys(nbt, level) )
 		return NULL;
 	if ( !create_list_keys(nbt, level) )
 		return NULL;
+//	if ( !create_blob_keys(nbt, level) )
+//		return NULL;
 
 	return level;
 }
@@ -371,6 +457,22 @@ chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 	if ( NULL == c->level )
 		goto out_free_nbt;
 
+#if 0
+	/* TODO: read section list */
+	nbt_tag_t s, tag;
+
+	for(i = 0; i < CHUNK_NUM_SECTIONS; i++) {
+		uint8_t val;
+		s = c->section[i];
+		tag = nbt_compound_get(s, "Y");
+		if ( !nbt_byte_get(tag, &val) ) {
+			abort();
+		}
+
+		if ( val == secno )
+			return s;
+	}
+#endif
 	nbt_dump(c->nbt);
 	//printf("decoded %zu bytes of chunk data\n", sz);
 

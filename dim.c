@@ -194,7 +194,7 @@ region_t dim_new_region(dim_t d, int x, int z)
 		}
 	}
 
-	if ( asprintf(&fn, "%s/r.%d.%d.%s", d->path, x, z, "mcr") < 0 )
+	if ( asprintf(&fn, "%s/r.%d.%d.%s", d->path, x, z, "mca") < 0 )
 		return NULL;
 
 	r = region_new(fn);
@@ -218,7 +218,7 @@ region_t dim_new_region(dim_t d, int x, int z)
 	}
 
 	dr->reg = r;
-	return r;
+	return region_get(r);
 }
 
 void dim_close(dim_t d)

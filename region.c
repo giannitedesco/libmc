@@ -26,7 +26,7 @@
 #include <libmc/region.h>
 
 /* chunk data stored at 4KB granularity */
-#define INTERNAL_CHUNK_SHIFT 	12
+#define INTERNAL_CHUNK_SHIFT	12
 #define INTERNAL_CHUNK_SIZE	(1 << INTERNAL_CHUNK_SHIFT)
 #define CSIZE_IN_PAGES(x)	((x + (INTERNAL_CHUNK_SIZE - 1)) >> \
 					INTERNAL_CHUNK_SHIFT)
@@ -407,9 +407,13 @@ out:
 
 static void region_close(region_t r)
 {
+	unsigned int i;
 	free(r->path);
 	if ( r->fd >= 0 )
 		close(r->fd);
+	for(i = 0; i < REGION_X * REGION_Z; i++ )
+		if ( r->chunks[i] )
+			chunk_put(r->chunks[i]);
 	free(r);
 }
 

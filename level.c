@@ -102,6 +102,8 @@ level_t level_load(const char *path)
 		goto out_free;
 	}
 
+	nbt_dump(l->nbt);
+
 	root = nbt_root_tag(l->nbt);
 	if ( NULL == root )
 		goto out_free;
@@ -193,7 +195,7 @@ static nbt_tag_t create_data_keys(nbt_t nbt)
 
 	/* XXX: savegame format version */
 	ver = nbt_compound_get(data, "version");
-	if ( !nbt_int_set(ver, 19132) )
+	if ( !nbt_int_set(ver, 19133) )
 		return NULL;
 
 	return data;

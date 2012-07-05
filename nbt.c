@@ -27,7 +27,7 @@ struct nbt_byte_array {
 
 struct nbt_int_array {
 	int32_t len;
-	uint32_t *array;
+	int32_t *array;
 };
 
 struct nbt_list {
@@ -123,6 +123,13 @@ static void do_dump(struct nbt_tag *tag, unsigned int depth)
 	switch(tag->t_type) {
 	case NBT_TAG_Byte_Array:
 		printf(" = %d bytes\n", tag->t_u.t_blob.len);
+#if 0
+		if ( !strcmp(tag->t_name, "SkyLight") ||
+			!strcmp(tag->t_name, "BlockLight") ) {
+			hex_dumpf(stdout, tag->t_u.t_blob.array,
+					tag->t_u.t_blob.len, 16);
+		}
+#endif
 		break;
 	case NBT_TAG_Byte:
 		printf(" = %d\n", tag->t_u.t_byte);
@@ -330,7 +337,7 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 		tag->t_u.t_ints.array = malloc(alen);
 		if ( NULL == tag->t_u.t_ints.array )
 			return NULL;
-		tag->t_u.t_ints.len = alen;
+		tag->t_u.t_ints.len = alen / sizeof(int32_t);
 		memcpy(tag->t_u.t_ints.array, aptr, alen);
 		break;
 	default:
@@ -409,12 +416,21 @@ int nbt_long_get(nbt_tag_t t, int64_t *val)
 	return 1;
 }
 
-int nbt_buffer_get(nbt_tag_t t, uint8_t **bytes, size_t *sz)
+int nbt_bytearray_get(nbt_tag_t t, uint8_t **bytes, size_t *sz)
 {
 	if (NULL == t || t->t_type != NBT_TAG_Byte_Array)
 		return 0;
 	*bytes = t->t_u.t_blob.array;
 	*sz = (size_t)t->t_u.t_blob.len;
+	return 1;
+}
+
+int nbt_intarray_get(nbt_tag_t t, int32_t **ints, unsigned int *num)
+{
+	if (NULL == t || t->t_type != NBT_TAG_Int_Array)
+		return 0;
+	*ints = t->t_u.t_ints.array;
+	*num = t->t_u.t_ints.len;
 	return 1;
 }
 
@@ -490,21 +506,40 @@ int nbt_long_set(nbt_tag_t t, int64_t val)
 	return 1;
 }
 
-int nbt_buffer_set(nbt_tag_t t, uint8_t *bytes, size_t sz)
+int nbt_bytearray_set(nbt_tag_t t, const uint8_t *bytes, unsigned int num)
 {
 	uint8_t *buf;
 
 	if ( NULL == t || t->t_type != NBT_TAG_Byte_Array )
 		return 0;
 
-	buf = malloc(sz);
+	buf = malloc(num);
 	if ( NULL == buf )
 		return 0;
 
 	free(t->t_u.t_blob.array);
-	memcpy(buf, bytes, sz);
+	memcpy(buf, bytes, num);
 	t->t_u.t_blob.array = buf;
-	t->t_u.t_blob.len = sz;
+	t->t_u.t_blob.len = num;
+
+	return 1;
+}
+
+int nbt_intarray_set(nbt_tag_t t, const int32_t *ints, unsigned int num)
+{
+	int32_t *buf;
+
+	if ( NULL == t || t->t_type != NBT_TAG_Int_Array )
+		return 0;
+
+	buf = malloc(sizeof(int32_t) * num);
+	if ( NULL == buf )
+		return 0;
+
+	free(t->t_u.t_ints.array);
+	memcpy(buf, ints, num);
+	t->t_u.t_ints.array = buf;
+	t->t_u.t_ints.len = num;
 
 	return 1;
 }
@@ -534,19 +569,34 @@ int nbt_list_set(nbt_tag_t t, unsigned idx, nbt_tag_t val)
 		return 0;
 	if ( idx > INT_MAX || (unsigned)t->t_u.t_list.len <= idx )
 		return 0;
-	/* TODO: list set */
+	t->t_u.t_list.array[idx] = val;
 	return 1;
 
 }
 
 int nbt_list_set_size(nbt_tag_t t, unsigned sz)
 {
+	nbt_tag_t *new;
+
 	if ( NULL == t || t->t_type != NBT_TAG_List )
 		return 0;
-	/* must be newly created or nuked */
-	if ( t->t_u.t_list.len )
+
+	new = realloc(t->t_u.t_list.array, sz * sizeof(*new));
+	if ( NULL == new )
 		return 0;
-	/* TODO: list set size */
+
+	t->t_u.t_list.array = new;
+	t->t_u.t_list.len = sz;
+	return 1;
+}
+
+int nbt_list_append(nbt_tag_t t, nbt_tag_t val)
+{
+	unsigned int idx = t->t_u.t_list.len;
+	if ( !nbt_list_set_size(t, t->t_u.t_list.len + 1) )
+		return 0;
+	if ( !nbt_list_set(t, idx, val) )
+		return 0;
 	return 1;
 }
 
@@ -824,14 +874,14 @@ static int do_get_bytes(struct nbt_tag *tag, int type,
 		break;
 	case NBT_TAG_Int_Array:
 		if ( ptr + sizeof(int32_t) +
-			(tag->t_u.t_blob.len *sizeof(int32_t)) > end ) {
+			(tag->t_u.t_ints.len * sizeof(int32_t)) > end ) {
 			return 0;
 		}
-		*(int32_t *)ptr = htobe32(tag->t_u.t_blob.len) * sizeof(int32_t);
+		*(int32_t *)ptr = htobe32(tag->t_u.t_ints.len);
 		ptr += sizeof(int32_t);
-		memcpy(ptr, tag->t_u.t_blob.array,
-			tag->t_u.t_blob.len * sizeof(int32_t));
-		ptr += tag->t_u.t_blob.len * sizeof(int32_t);
+		memcpy(ptr, tag->t_u.t_ints.array,
+			tag->t_u.t_ints.len * sizeof(int32_t));
+		ptr += tag->t_u.t_ints.len * sizeof(int32_t);
 		break;
 	default:
 		return 0;

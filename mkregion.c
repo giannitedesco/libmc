@@ -15,6 +15,7 @@
 #include <libmc/schematic.h>
 #include <libmc/region.h>
 
+#if 0
 static void schematic_to_chunk(schematic_t s, chunk_t c)
 {
 	int x, y, z;
@@ -62,6 +63,7 @@ static void schematic_to_chunk(schematic_t s, chunk_t c)
 		}
 	}
 }
+#endif
 
 int main(int argc, char **argv)
 {
