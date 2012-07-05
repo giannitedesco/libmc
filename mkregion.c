@@ -99,8 +99,8 @@ int main(int argc, char **argv)
 	chunk_floor(c, 2, 1);
 	chunk_floor(c, 3, 1);
 
-#if 1
-	do { 
+#if 0
+	do {
 		schematic_t s;
 		s = schematic_load("7seg.schematic");
 		if ( s )

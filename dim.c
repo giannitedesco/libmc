@@ -13,6 +13,7 @@
 
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 
 #include <endian.h>
@@ -55,12 +56,12 @@ static int reg_assure(struct _dim *d)
 	return 1;
 }
 
-static int add_region(struct _dim *d, int x, int z)
+static int add_region(struct _dim *d, int x, int z, const char *ext)
 {
 	char *fn;
 	region_t r;
 
-	if ( asprintf(&fn, "%s/r.%d.%d.mcr", d->path, x, z) < 0 )
+	if ( asprintf(&fn, "%s/r.%d.%d.%s", d->path, x, z, ext) < 0 )
 		goto err;
 
 	r = region_open(fn);
@@ -85,7 +86,7 @@ err_free:
 err:
 	return 0;
 }
-				
+
 dim_t dim_open(const char *path)
 {
 	struct _dim *d;
@@ -95,7 +96,7 @@ dim_t dim_open(const char *path)
 	d = calloc(1, sizeof(*d));
 	if ( NULL == d )
 		goto out;
-	
+
 	d->path = strdup(path);
 	if ( NULL == d->path )
 		goto out_free;
@@ -111,10 +112,15 @@ dim_t dim_open(const char *path)
 	}
 
 	while( (de = readdir(dir)) ) {
+		const char *ext;
 		int x, z;
-		if ( sscanf(de->d_name, "r.%d.%d.mcr", &x, &z) != 2 )
+		if ( sscanf(de->d_name, "r.%d.%d.mcr", &x, &z) == 2 )
+			ext = "mcr";
+		else if ( sscanf(de->d_name, "r.%d.%d.mca", &x, &z) == 2 ) {
+			ext = "mca";
+		}else
 			continue;
-		if ( !add_region(d, x, z) )
+		if ( !add_region(d, x, z, ext) )
 			goto out_free_path;
 	}
 
@@ -132,6 +138,37 @@ out:
 	return d;
 }
 
+static int have_dir(const char *dir)
+{
+	if ( !mkdir(dir, 0700) || errno == EEXIST )
+		return 1;
+	return 0;
+}
+
+dim_t dim_create(const char *path)
+{
+	struct _dim *d;
+
+	d = calloc(1, sizeof(*d));
+	if ( NULL == d )
+		goto out;
+
+	d->path = strdup(path);
+	if ( NULL == d->path )
+		goto out_free;
+
+	if ( !have_dir(path) )
+		goto out_free;
+
+	goto out; /* success */
+out_free:
+	free(d->path);
+	free(d);
+	d = NULL;
+out:
+	return d;
+}
+
 region_t dim_get_region(dim_t d, int x, int z)
 {
 	unsigned int i;
@@ -141,6 +178,47 @@ region_t dim_get_region(dim_t d, int x, int z)
 			return region_get(d->reg[i].reg);
 	}
 	return NULL;
+}
+
+region_t dim_new_region(dim_t d, int x, int z)
+{
+	struct dim_reg *dr = NULL;
+	unsigned int i;
+	char *fn;
+	region_t r;
+
+	for(i = 0; i < d->num_reg; i++) {
+		if ( d->reg[i].x == x && d->reg[i].z == z ) {
+			dr = &d->reg[i];
+			break;
+		}
+	}
+
+	if ( asprintf(&fn, "%s/r.%d.%d.%s", d->path, x, z, "mcr") < 0 )
+		return NULL;
+
+	r = region_new(fn);
+	free(fn);
+	if ( NULL == r )
+		return NULL;
+
+	region_set_pos(r, x, z);
+
+	if ( NULL == dr ) {
+		if ( !reg_assure(d) ) {
+			region_put(r);
+			return NULL;
+		}
+		d->reg[d->num_reg].x = x;
+		d->reg[d->num_reg].z = z;
+		dr = &d->reg[d->num_reg];
+		d->num_reg++;
+	}else{
+		region_put(dr->reg);
+	}
+
+	dr->reg = r;
+	return r;
 }
 
 void dim_close(dim_t d)

@@ -15,6 +15,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <zlib.h>
 
@@ -40,8 +41,10 @@ static int gunzip(const char *path, uint8_t **begin, size_t *osz)
 	*osz = 0;
 
 	fd = open(path, O_RDONLY);
-	if ( fd < 0 )
+	if ( fd < 0 ) {
+		fprintf(stderr, "level: %s: %s\n", path, strerror(errno));
 		goto out;
+	}
 
 	/* grab decompressed len from gzip trailer, eugh */
 	if ( lseek(fd, -sizeof(d), SEEK_END) < 0 )
@@ -87,13 +90,17 @@ level_t level_load(const char *path)
 	if ( NULL == l )
 		goto out;
 
-	if ( !gunzip(path, &buf, &sz) )
+	if ( !gunzip(path, &buf, &sz) ) {
+		fprintf(stderr, "level: load: unzip failed\n");
 		goto out_free;
+	}
 
 	l->nbt = nbt_decode(buf, sz);
 	free(buf);
-	if ( NULL == l->nbt )
+	if ( NULL == l->nbt ) {
+		fprintf(stderr, "level: load: nbt decode failed\n");
 		goto out_free;
+	}
 
 	root = nbt_root_tag(l->nbt);
 	if ( NULL == root )

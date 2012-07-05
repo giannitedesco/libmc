@@ -28,7 +28,8 @@
 #include <libmc/nbt.h>
 
 struct _world {
-	dim_t earth;
+	char *path;
+	dim_t overworld;
 	dim_t nether;
 	level_t level_dat;
 };
@@ -42,20 +43,28 @@ world_t world_open(const char *dir)
 	if ( NULL == w )
 		goto out;
 
+	w->path = strdup(dir);
+	if ( NULL == w->path )
+		goto out_free;
+
 	if ( asprintf(&path, "%s/level.dat", dir) < 0 )
 		goto out_free;
 	w->level_dat = level_load(path);
 	free(path);
-	if ( NULL == w->level_dat )
+	if ( NULL == w->level_dat ) {
+		fprintf(stderr, "world: open: level load failed\n");
 		goto out_free;
+	}
 
 	/* Open regular world */
 	if ( asprintf(&path, "%s/region", dir) < 0 )
-		goto out_free;
-	w->earth = dim_open(path);
+		goto out_free_level;
+	w->overworld = dim_open(path);
 	free(path);
-	if ( NULL == w->earth )
-		goto out_free;
+	if ( NULL == w->overworld ) {
+		fprintf(stderr, "world: open: overworld open failed\n");
+		goto out_free_level;
+	}
 
 	/* Open nether */
 	if ( asprintf(&path, "%s/DIM-1/region", dir) < 0 )
@@ -63,38 +72,16 @@ world_t world_open(const char *dir)
 	w->nether = dim_open(path);
 	free(path);
 	if ( NULL == w->nether )
-		goto out_free;
+		goto out_free_level;
 
 	goto out;
 
-out_free:
+out_free_level:
 	level_put(w->level_dat);
-	dim_close(w->earth);
-	dim_close(w->nether);
-	free(w);
-	w = NULL;
-out:
-	return w;
-}
-
-world_t world_create(void)
-{
-	struct _world *w;
-
-	w = calloc(1, sizeof(*w));
-	if ( NULL == w )
-		goto out;
-
-	w->level_dat = level_new();
-	if ( NULL == w->level_dat )
-		goto out_free;
-
-	goto out;
-
 out_free:
-	level_put(w->level_dat);
-	dim_close(w->earth);
+	dim_close(w->overworld);
 	dim_close(w->nether);
+	free(w->path);
 	free(w);
 	w = NULL;
 out:
@@ -108,15 +95,15 @@ static int have_dir(const char *dir)
 	return 0;
 }
 
-int world_save(world_t w, const char *dir)
+int world_save(world_t w)
 {
 	char *path;
 	int ret;
 
-	if ( !have_dir(dir) )
+	if ( !have_dir(w->path) )
 		return 0;
 
-	if ( asprintf(&path, "%s/level.dat", dir) < 0 )
+	if ( asprintf(&path, "%s/level.dat", w->path) < 0 )
 		return 0;
 	ret = level_save(w->level_dat, path);
 	free(path);
@@ -126,9 +113,55 @@ int world_save(world_t w, const char *dir)
 	return 1;
 }
 
-dim_t world_get_earth(world_t w)
+world_t world_create(const char *dir)
 {
-	return w->earth;
+	struct _world *w;
+	char *path;
+
+	w = calloc(1, sizeof(*w));
+	if ( NULL == w )
+		goto out;
+
+	w->path = strdup(dir);
+	if ( NULL == w->path )
+		goto out_free;
+
+	w->level_dat = level_new();
+	if ( NULL == w->level_dat )
+		goto out_free;
+
+	/* create the dir */
+	if ( !have_dir(w->path) )
+		goto out_free_level;
+
+	/* Open regular world */
+	if ( asprintf(&path, "%s/region", dir) < 0 )
+		goto out_free_level;
+	w->overworld = dim_create(path);
+	free(path);
+	if ( NULL == w->overworld ) {
+		fprintf(stderr, "world: open: overworld create failed\n");
+		goto out_free_level;
+	}
+
+	goto out;
+
+out_free_level:
+	level_put(w->level_dat);
+out_free:
+	level_put(w->level_dat);
+	dim_close(w->overworld);
+	dim_close(w->nether);
+	free(w->path);
+	free(w);
+	w = NULL;
+out:
+	return w;
+}
+
+dim_t world_get_overworld(world_t w)
+{
+	return w->overworld;
 }
 
 dim_t world_get_nether(world_t w)
@@ -145,7 +178,7 @@ void world_close(world_t w)
 {
 	if ( w ) {
 		level_put(w->level_dat);
-		dim_close(w->earth);
+		dim_close(w->overworld);
 		dim_close(w->nether);
 		free(w);
 	}

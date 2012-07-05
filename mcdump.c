@@ -16,6 +16,8 @@
 #include <libmc/level.h>
 #include <libmc/world.h>
 
+static const char *cmd = "mcdump";
+
 int main(int argc, char **argv)
 {
 	world_t w;
@@ -23,19 +25,25 @@ int main(int argc, char **argv)
 	region_t r;
 	uint8_t x, z;
 
+	if ( argc )
+		cmd = argv[0];
+
 	if ( argc < 2 ) {
-		fprintf(stderr, "Usage:\n\t%s <save-game>\n",
-			argv[0]);
+		fprintf(stderr, "Usage:\n\t%s <save-game>\n", cmd);
 		return EXIT_FAILURE;
 	}
 
 	w = world_open(argv[1]);
-	if ( w == NULL )
+	if ( w == NULL ) {
+		fprintf(stderr, "%s: world_open: failed\n", cmd);
 		return EXIT_FAILURE;
+	}
 
-	d = world_get_earth(w);
-	if ( NULL == d )
+	d = world_get_overworld(w);
+	if ( NULL == d ) {
+		fprintf(stderr, "%s: world_get_overworld: failed\n", cmd);
 		return EXIT_FAILURE;
+	}
 
 	printf("Opened dimension: %s\n", argv[1]);
 

@@ -152,7 +152,7 @@ static uint8_t *chunk_enc_zlib(chunk_t c, size_t *sz)
 	cbuf = malloc(clen);
 	if ( NULL == cbuf )
 		goto out;
-	
+
 	if ( compress(cbuf, &clen, dbuf, dlen) == Z_OK ) {
 		*sz = clen;
 	}else{
