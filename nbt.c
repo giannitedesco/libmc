@@ -25,6 +25,11 @@ struct nbt_byte_array {
 	uint8_t *array;
 };
 
+struct nbt_int_array {
+	int32_t len;
+	uint32_t *array;
+};
+
 struct nbt_list {
 	struct nbt_tag **array;
 	int32_t len;
@@ -45,6 +50,7 @@ struct nbt_tag {
 		char *t_str;
 		struct nbt_list t_list;
 		struct list_head t_compound;
+		struct nbt_int_array t_ints;
 	}t_u;
 	uint8_t t_type;
 };
@@ -106,6 +112,7 @@ static void do_dump(struct nbt_tag *tag, unsigned int depth)
 		[NBT_TAG_String] = "String",
 		[NBT_TAG_List] = "List",
 		[NBT_TAG_Compound] = "Compound",
+		[NBT_TAG_Int_Array] = "IntArray",
 	};
 	struct nbt_tag *c;
 	int32_t i;
@@ -151,6 +158,9 @@ static void do_dump(struct nbt_tag *tag, unsigned int depth)
 		list_for_each_entry(c, &tag->t_u.t_compound, t_list)
 			do_dump(c, depth + 1);
 		printf("%*c }\n", depth * 2, ' ');
+		break;
+	case NBT_TAG_Int_Array:
+		printf(" = %d ints\n", tag->t_u.t_ints.len);
 		break;
 	default:
 		printf("\n");
@@ -309,6 +319,20 @@ static const uint8_t *decode_tag(struct _nbt *nbt,
 			}
 		}
 		break;
+	case NBT_TAG_Int_Array:
+		if ( ptr + sizeof(alen) > end )
+			return NULL;
+		alen = be32toh(*(int32_t *)ptr) * sizeof(int32_t);
+		aptr =  ptr + sizeof(alen);
+		ptr += sizeof(alen) + alen;
+		if ( alen < 0 || ptr > end )
+			return NULL;
+		tag->t_u.t_ints.array = malloc(alen);
+		if ( NULL == tag->t_u.t_ints.array )
+			return NULL;
+		tag->t_u.t_ints.len = alen;
+		memcpy(tag->t_u.t_ints.array, aptr, alen);
+		break;
 	default:
 		printf("nbt: uknown type %d\n", tag->t_type);
 		return NULL;
@@ -337,6 +361,9 @@ static void free_nbt_data(struct nbt_tag *tag)
 	case NBT_TAG_Compound:
 		list_for_each_entry(c, &tag->t_u.t_compound, t_list)
 			free_nbt_data(c);
+		break;
+	case NBT_TAG_Int_Array:
+		free(tag->t_u.t_ints.array);
 		break;
 	default:
 		break;
@@ -469,7 +496,7 @@ int nbt_buffer_set(nbt_tag_t t, uint8_t *bytes, size_t sz)
 
 	if ( NULL == t || t->t_type != NBT_TAG_Byte_Array )
 		return 0;
-	
+
 	buf = malloc(sz);
 	if ( NULL == buf )
 		return 0;
@@ -678,6 +705,10 @@ static void do_get_size(struct nbt_tag *tag, int type, size_t *sz)
 			do_get_size(c, TAG_NAMED, sz);
 		*sz += 1;
 		break;
+	case NBT_TAG_Int_Array:
+		*sz += sizeof(tag->t_u.t_ints.len) +
+			(tag->t_u.t_ints.len * sizeof(int32_t));
+		break;
 	default:
 		break;
 	}
@@ -790,6 +821,17 @@ static int do_get_bytes(struct nbt_tag *tag, int type,
 			return 0;
 		*ptr = NBT_TAG_End;
 		ptr += sizeof(uint8_t);
+		break;
+	case NBT_TAG_Int_Array:
+		if ( ptr + sizeof(int32_t) +
+			(tag->t_u.t_blob.len *sizeof(int32_t)) > end ) {
+			return 0;
+		}
+		*(int32_t *)ptr = htobe32(tag->t_u.t_blob.len) * sizeof(int32_t);
+		ptr += sizeof(int32_t);
+		memcpy(ptr, tag->t_u.t_blob.array,
+			tag->t_u.t_blob.len * sizeof(int32_t));
+		ptr += tag->t_u.t_blob.len * sizeof(int32_t);
 		break;
 	default:
 		return 0;

@@ -65,8 +65,10 @@ static int add_region(struct _dim *d, int x, int z, const char *ext)
 		goto err;
 
 	r = region_open(fn);
-	if ( NULL == r )
+	if ( NULL == r ) {
+		printf("dim: %s: region_open failed\n", fn);
 		goto err_free;
+	}
 
 	if ( !reg_assure(d) )
 		goto err_close;
@@ -112,13 +114,11 @@ dim_t dim_open(const char *path)
 	}
 
 	while( (de = readdir(dir)) ) {
-		const char *ext;
+		char ext[8];
 		int x, z;
-		if ( sscanf(de->d_name, "r.%d.%d.mcr", &x, &z) == 2 )
-			ext = "mcr";
-		else if ( sscanf(de->d_name, "r.%d.%d.mca", &x, &z) == 2 ) {
-			ext = "mca";
-		}else
+		if ( sscanf(de->d_name, "r.%d.%d.%3s", &x, &z, ext) != 3 )
+			continue;
+		if ( strcmp(ext, "mca") && strcmp(ext, "mcr") )
 			continue;
 		if ( !add_region(d, x, z, ext) )
 			goto out_free_path;

@@ -12,7 +12,8 @@
 #define NBT_TAG_String		8U
 #define NBT_TAG_List		9U
 #define NBT_TAG_Compound	10U
-#define NBT_TAG_MAX		11U
+#define NBT_TAG_Int_Array	11U
+#define NBT_TAG_MAX		12U
 
 typedef struct _nbt *nbt_t;
 typedef struct nbt_tag *nbt_tag_t;
