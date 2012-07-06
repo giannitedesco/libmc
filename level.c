@@ -126,6 +126,7 @@ out:
 static int create_int_keys(nbt_t nbt, nbt_tag_t data)
 {
 	static const char * const names[] = {
+		"GameType",
 		"thundering",
 		"LastPlayed",
 		"RandomSeed",
@@ -138,8 +139,10 @@ static int create_int_keys(nbt_t nbt, nbt_tag_t data)
 		"SpawnZ",
 		"SizeOnDisk",
 		"rainTime",
+		"generatorVersion",
 	};
 	static const uint8_t types[] = {
+		NBT_TAG_Int,
 		NBT_TAG_Byte,
 		NBT_TAG_Long,
 		NBT_TAG_Long,
@@ -151,6 +154,7 @@ static int create_int_keys(nbt_t nbt, nbt_tag_t data)
 		NBT_TAG_Int,
 		NBT_TAG_Int,
 		NBT_TAG_Long,
+		NBT_TAG_Int,
 		NBT_TAG_Int,
 	};
 	unsigned int i;
@@ -175,23 +179,41 @@ static nbt_tag_t create_data_keys(nbt_t nbt)
 	root = nbt_root_tag(nbt);
 	if ( NULL == root )
 		return NULL;
-	
+
 	data = nbt_tag_new(nbt, NBT_TAG_Compound);
 	if ( NULL == data )
 		return NULL;
-	
+
 	if ( !nbt_compound_set(root, "Data", data) )
 		return NULL;
-	
+
 	if ( !create_int_keys(nbt, data) )
 		return NULL;
 
 	name = nbt_tag_new(nbt, NBT_TAG_String);
 	if ( NULL == name )
 		return NULL;
-	
+
 	if ( !nbt_compound_set(data, "LevelName", name) )
 		return NULL;
+
+	name = nbt_tag_new(nbt, NBT_TAG_String);
+	if ( NULL == name )
+		return NULL;
+
+	if ( !nbt_compound_set(data, "generatorName", name) )
+		return NULL;
+
+	if ( !nbt_string_set(name, "default") )
+		return 0;
+
+	ver = nbt_compound_get(data, "generatorVersion");
+	if ( !nbt_int_set(ver, 1) )
+		return 0;
+
+	ver = nbt_compound_get(data, "GameType");
+	if ( !nbt_int_set(ver, 1) )
+		return 0;
 
 	/* XXX: savegame format version */
 	ver = nbt_compound_get(data, "version");
@@ -216,7 +238,7 @@ level_t level_new(void)
 	l->data = create_data_keys(l->nbt);
 	if ( NULL == l->data )
 		goto out_free;
-	
+
 	l->ref = 1;
 	goto out;
 

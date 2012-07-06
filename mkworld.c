@@ -135,7 +135,7 @@ int main(int argc, char **argv)
 
 	if ( !level_set_name(l, argv[2]) )
 		return EXIT_FAILURE;
-	if ( !level_set_spawn(l, 0, 4, 0) )
+	if ( !level_set_spawn(l, 256, 7, 256) )
 		return EXIT_FAILURE;
 
 	level_put(l);

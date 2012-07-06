@@ -77,7 +77,6 @@ static nbt_tag_t get_add_section(chunk_t c, uint8_t secno)
 		if ( NULL == list )
 			return NULL;
 
-		printf("HAI\n");
 		if ( !nbt_compound_set(c->level, "Sections", list) )
 			return NULL;
 
