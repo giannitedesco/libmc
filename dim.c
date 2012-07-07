@@ -20,6 +20,7 @@
 
 #include <zlib.h>
 
+#include <libmc/schematic.h>
 #include <libmc/chunk.h>
 #include <libmc/region.h>
 #include <libmc/dim.h>
@@ -231,4 +232,56 @@ void dim_close(dim_t d)
 		free(d->path);
 		free(d);
 	}
+}
+
+#define RX (REGION_X * CHUNK_X)
+#define RZ (REGION_Z * CHUNK_Z)
+
+#define XFLOOR(x) (x / RX)
+#define ZFLOOR(z) (z / RZ)
+#define XCEIL(x) ((x + (RX-1)) / RX)
+#define ZCEIL(z) ((z + (RZ-1)) / RZ)
+
+int dim_paste_schematic(dim_t d, schematic_t s, int x, int y, int z)
+{
+	int16_t sx, sz;
+	int tx, tz, xmin, zmin, xmax, zmax;
+
+	schematic_get_size(s, &sx, NULL, &sz);
+
+	tx = x + sx;
+	tz = z + sz;
+
+	xmin = XFLOOR(d_min(x, tx));
+	zmin = ZFLOOR(d_min(z, tz));
+	xmax = XCEIL(d_max(x, tx));
+	zmax = ZCEIL(d_max(z, tz));
+
+	printf("dim: schematic dimesions %d %d: %d,%d -> %d,%d\n",
+		sx, sz, xmin, zmin, xmax, zmax);
+
+	x %= RX;
+	z %= RZ;
+
+	for(tx = xmin; tx < xmax; tx++, x -= RX) {
+		for(tz = zmin; tz < zmax; tz++, z -= RZ) {
+			region_t r;
+			int ret;
+
+			r = dim_get_region(d, tx, tz);
+			if ( NULL == r )
+				r = dim_new_region(d, tx, tz);
+			if ( NULL == r )
+				return 0;
+			/* TODO: get sub-schematic */
+			ret = region_paste_schematic(r, s, x, y, z);
+			if ( ret )
+				ret = region_save(r);
+			region_put(r);
+			if ( !ret )
+				return 0;
+		}
+	}
+
+	return 1;
 }

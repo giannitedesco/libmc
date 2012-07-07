@@ -10,6 +10,7 @@
 
 #include <unistd.h>
 
+#include <libmc/schematic.h>
 #include <libmc/chunk.h>
 #include <libmc/region.h>
 #include <libmc/dim.h>

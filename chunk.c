@@ -8,9 +8,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include <zlib.h>
 
+#include <libmc/schematic.h>
 #include <libmc/chunk.h>
 #include <libmc/nbt.h>
 
@@ -19,6 +21,9 @@
 
 #define CHUNK_NUM_SECTIONS	16
 #define CHUNK_SECTION_Y		(CHUNK_Y / CHUNK_NUM_SECTIONS)
+
+#define SEC_FLOOR(y) (y / CHUNK_SECTION_Y)
+#define SEC_CEIL(y) ((y + (CHUNK_SECTION_Y - 1)) / CHUNK_SECTION_Y)
 
 struct _chunk {
 	unsigned int ref;
@@ -359,12 +364,10 @@ static int create_list_keys(nbt_t nbt, nbt_tag_t level)
 	static const char * const names[] = {
 		"TileEntities",
 		"Entities",
-//		"Sections",
 	};
 	static const uint8_t types[] = {
 		NBT_TAG_Byte,
 		NBT_TAG_Byte,
-//		NBT_TAG_Compound,
 	};
 	unsigned int i;
 
@@ -437,6 +440,7 @@ out:
 
 chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 {
+	nbt_tag_t s, tag;
 	struct _chunk *c;
 	nbt_tag_t root;
 
@@ -456,22 +460,25 @@ chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 	if ( NULL == c->level )
 		goto out_free_nbt;
 
-#if 0
-	/* TODO: read section list */
-	nbt_tag_t s, tag;
+	c->seclist = nbt_compound_get(c->level, "Sections");
+	if ( c->seclist ) {
+		int i, num = nbt_list_get_size(c->seclist);
+		for(i = 0; i < num; i++) {
+			uint8_t val;
+			s = nbt_list_get(c->seclist, i);
+			if ( NULL == s )
+				continue;
 
-	for(i = 0; i < CHUNK_NUM_SECTIONS; i++) {
-		uint8_t val;
-		s = c->section[i];
-		tag = nbt_compound_get(s, "Y");
-		if ( !nbt_byte_get(tag, &val) ) {
-			abort();
+			tag = nbt_compound_get(s, "Y");
+			if ( !nbt_byte_get(tag, &val) ) {
+				abort();
+			}
+
+			if ( val < CHUNK_NUM_SECTIONS )
+				c->section[val] = s;
 		}
-
-		if ( val == secno )
-			return s;
 	}
-#endif
+
 	nbt_dump(c->nbt);
 	//printf("decoded %zu bytes of chunk data\n", sz);
 
@@ -503,4 +510,96 @@ chunk_t chunk_get(chunk_t c)
 {
 	c->ref++;
 	return c;
+}
+
+int chunk_paste_schematic(chunk_t c, schematic_t s, int x, int y, int z)
+{
+	int16_t sx, sz, sy;
+	int xmin, ymin, zmin;
+	int xmax, ymax, zmax;
+	int tx, ty, tz;
+	int cx, cy, cz;
+	int smin, smax, i, ci = 0;
+	uint8_t *sb, *sd;
+
+	schematic_get_size(s, &sx, &sy, &sz);
+	tx = x + sx;
+	ty = y + sy;
+	tz = z + sz;
+
+	xmin = d_min(x, tx);
+	ymin = d_min(y, ty);
+	zmin = d_min(z, tz);
+	xmax = d_max(x, tx);
+	ymax = d_max(y, ty);
+	zmax = d_max(z, tz);
+
+	printf("chunk: schematic dimesions %d,%d,%d -> %d,%d,%d\n",
+		xmin, ymin, zmin, xmax, ymax, zmax);
+
+	assert(xmin >= 0 && ymin >= 0 && zmin >= 0);
+	assert(xmax < CHUNK_X && ymax < CHUNK_Y && zmax < CHUNK_Z);
+
+	smin = SEC_FLOOR(ymin);
+	smax = SEC_CEIL(ymax);
+
+	sb = schematic_get_blocks(s);
+	sd = schematic_get_data(s);
+
+	for(i = smin; i < smax; i++, y -= CHUNK_SECTION_Y) {
+		int tmin, tmax, co;
+		nbt_tag_t sec;
+		uint8_t *cb, *cd;
+		size_t len;
+
+		tmin = i * CHUNK_SECTION_Y;
+		tmax = (i + 1) * CHUNK_SECTION_Y;
+		tmin = d_max(tmin, ymin);
+		tmax = d_min(tmax, ymax);
+		printf(" - section %d (%d -> %d)\n", i, tmin, tmax);
+		co = tmin % CHUNK_SECTION_Y;
+
+		sec = get_add_section(c, i);
+		if ( NULL == sec )
+			return 0;
+
+		if ( !nbt_bytearray_get(nbt_compound_get(sec, "Blocks"),
+					&cb, &len) )
+			return 0;
+		if ( !nbt_bytearray_get(nbt_compound_get(sec, "Data"),
+					&cd, &len) )
+			return 0;
+
+		for(cy = 0; cy < (tmax - tmin); cy++, ci++, co++) {
+			printf("cy=%d ci=%d co=%d\n", cy, ci, co);
+			for(cx = 0; cx < sx; cx++) {
+				for(cz = 0; cz < sz; cz++) {
+					uint8_t in, *out;
+					unsigned int didx;
+					uint8_t din;
+
+					in = sb[(ci * sz * sx) +
+						(cz * sx) + cx];
+					out = &cb[(co * CHUNK_Z * CHUNK_X) +
+						(cz * CHUNK_X) + cx];
+					*out = in;
+
+					didx = (ci * sz * sx) +
+						(cz * sx) + cx;
+					din = sd[didx];
+					didx = (co * CHUNK_Z * CHUNK_X) +
+						(cz * CHUNK_X) + cx;
+					if ( didx % 2 ) {
+						cd[didx/2] = (din << 4) |
+							(cd[didx/2] & 0x0f);
+					}else{
+						cd[didx/2]=(cd[didx/2] & 0xf0) |
+							din;
+					}
+				}
+			}
+		}
+	}
+
+	return 1;
 }

@@ -8,6 +8,16 @@
 #define CHUNK_ENC_RAW	0
 #define CHUNK_ENC_ZLIB	1
 
+static inline int d_min(int a, int b)
+{
+	return (a < b) ? a : b;
+}
+
+static inline int d_max(int a, int b)
+{
+	return (a > b) ? a : b;
+}
+
 typedef struct _chunk *chunk_t;
 
 chunk_t chunk_from_bytes(uint8_t *buf, size_t sz);
@@ -25,7 +35,6 @@ uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz);
 int chunk_strip_entities(chunk_t c);
 int chunk_solid(chunk_t c, unsigned int blk);
 int chunk_floor(chunk_t c, uint8_t y, unsigned int blk);
-
-/* TODO: proper re-lighting */
+int chunk_paste_schematic(chunk_t c, schematic_t s, int x, int y, int z);
 
 #endif /* _CHUNK_H */

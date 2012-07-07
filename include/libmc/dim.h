@@ -6,6 +6,7 @@ typedef struct _dim *dim_t;
 dim_t dim_open(const char *dir);
 region_t dim_get_region(dim_t d, int x, int z);
 region_t dim_new_region(dim_t d, int x, int z);
+int dim_paste_schematic(dim_t d, schematic_t s, int x, int y, int z);
 dim_t dim_create(const char *dir);
 void dim_close(dim_t d);
 

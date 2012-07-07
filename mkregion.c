@@ -11,59 +11,9 @@
 #include <unistd.h>
 #include <time.h>
 
-#include <libmc/chunk.h>
 #include <libmc/schematic.h>
+#include <libmc/chunk.h>
 #include <libmc/region.h>
-
-#if 0
-static void schematic_to_chunk(schematic_t s, chunk_t c)
-{
-	int x, y, z;
-	uint8_t *sb, *sd;
-	uint8_t *cb, *cd;
-	int16_t sx, sy, sz;
-	int zofs = 4;
-
-	schematic_get_size(s, &sx, &sy, &sz);
-	printf("schematic %d x %d x %d\n", sx, sy, sz);
-
-	sb = schematic_get_blocks(s);
-	sd = schematic_get_data(s);
-
-
-	cb = chunk_get_blocks(c);
-	cd = chunk_get_data(c);
-
-	for(x = 0; x < sx; x++) {
-		for(y = 0; y < sy; y++) {
-			for(z = 0; z < sz; z++) {
-				uint8_t in, *out;
-				unsigned int didx;
-				uint8_t din;
-
-				in = sb[(y * sz * sx) + (z * sx) + x];
-				out = &cb[(x * CHUNK_Y * CHUNK_Z) +
-						 (z * CHUNK_Y) + y + zofs];
-
-				*out = in;
-
-				didx = (y * sz * sx) + (z * sx) + x;
-				din = sd[didx];
-
-				didx = (x * CHUNK_Y * CHUNK_Z) +
-					(z * CHUNK_Y) + y + zofs;
-				if ( didx % 2 ) {
-					cd[didx/2] = (din << 4) |
-							(cd[didx/2] & 0x0f);
-				}else{
-					cd[didx/2] = (cd[didx/2] & 0xf0) |
-							din;
-				}
-			}
-		}
-	}
-}
-#endif
 
 int main(int argc, char **argv)
 {
@@ -100,15 +50,6 @@ int main(int argc, char **argv)
 	chunk_floor(c, 1, 1);
 	chunk_floor(c, 2, 1);
 	chunk_floor(c, 3, 1);
-
-#if 0
-	do {
-		schematic_t s;
-		s = schematic_load("7seg.schematic");
-		if ( s )
-			schematic_to_chunk(s, c);
-	}while(0);
-#endif
 
 	printf("Created world floor\n");
 

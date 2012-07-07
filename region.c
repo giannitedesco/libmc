@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -22,6 +23,7 @@
 
 #include <zlib.h>
 
+#include <libmc/schematic.h>
 #include <libmc/chunk.h>
 #include <libmc/region.h>
 
@@ -116,16 +118,44 @@ void region_set_pos(region_t r, int32_t x, int32_t z)
 	r->z = z;
 }
 
+static int read_from_loc(struct _region *r, unsigned int i,
+			uint8_t **buf, size_t *sz)
+{
+	uint32_t l, off;
+	ssize_t ret;
+	size_t len;
+
+	l = be32toh(r->locs[i]);
+	off = (l >> 8) << INTERNAL_CHUNK_SHIFT;
+	len = (l & 0xff) << INTERNAL_CHUNK_SHIFT;
+
+	*buf = malloc(len);
+	if ( NULL == *buf )
+		return 0;
+
+	ret = pread(r->fd, *buf, len, off);
+	if ( ret < 0 || (size_t)ret < len ) {
+		free(*buf);
+		return 0;
+	}
+
+	*sz = len;
+	return 1;
+}
+
 static int chunk_lookup(struct _region *r, uint8_t x, uint8_t z,
 			off_t *off, size_t *len)
 {
 	uint32_t l;
+
 	if ( x >= REGION_X || z >= REGION_Z )
 		return 0;
 
 	l = be32toh(r->locs[x * REGION_X + z]);
-	*off = (l >> 8) << INTERNAL_CHUNK_SHIFT;
-	*len = (l & 0xff) << INTERNAL_CHUNK_SHIFT;
+	if ( off )
+		*off = (l >> 8) << INTERNAL_CHUNK_SHIFT;
+	if ( len )
+		*len = (l & 0xff) << INTERNAL_CHUNK_SHIFT;
 
 #if 0
 	if ( *off && *len ) {
@@ -277,6 +307,8 @@ int region_set_chunk(region_t r, uint8_t x, uint8_t z, chunk_t c)
 {
 	if ( x >= REGION_X || z >= REGION_Z )
 		return 0;
+	if ( r->chunks[x * REGION_X + z] )
+		chunk_put(r->chunks[x * REGION_X + z]);
 	r->dirty = 1;
 	r->chunks[x * REGION_X + z] = chunk_get(c);
 	return 1;
@@ -352,7 +384,18 @@ int region_save(region_t r)
 			chunk_put(r->chunks[i]);
 			r->chunks[i] = NULL;
 		}else if ( r->locs[i] ) {
-			/* TODO: copy existing */
+			uint8_t *buf;
+			size_t sz;
+
+			/* copy existing */
+			if ( !read_from_loc(r, i, &buf, &sz) )
+				goto out_close;
+			ret = pwrite(fd, buf, sz,
+					pgno << INTERNAL_CHUNK_SHIFT);
+			free(buf);
+			if ( ret < 0 || (size_t)ret != sz )
+				goto out_close;
+			pgno += CSIZE_IN_PAGES(sz);
 		}
 	}
 
@@ -427,4 +470,63 @@ region_t region_get(region_t r)
 {
 	r->ref++;
 	return r;
+}
+
+#define XFLOOR(x) (x / CHUNK_X)
+#define ZFLOOR(z) (z / CHUNK_Z)
+#define XCEIL(x) ((x + (CHUNK_X-1)) / CHUNK_X)
+#define ZCEIL(z) ((z + (CHUNK_Z-1)) / CHUNK_Z)
+
+int region_paste_schematic(region_t r, schematic_t s, int x, int y, int z)
+{
+	int16_t sx, sz;
+	int tx, tz, xmin, zmin, xmax, zmax;
+
+	schematic_get_size(s, &sx, NULL, &sz);
+
+	tx = x + sx;
+	tz = z + sz;
+
+	xmin = XFLOOR(d_min(x, tx));
+	zmin = ZFLOOR(d_min(z, tz));
+	xmax = XCEIL(d_max(x, tx));
+	zmax = ZCEIL(d_max(z, tz));
+
+	printf("region: schematic dimesions %d %d: %d,%d -> %d,%d\n",
+		sx, sz, xmin, zmin, xmax, zmax);
+
+	assert(xmin >= 0 && zmin >= 0);
+	assert(xmax < (CHUNK_X * REGION_X));
+	assert(zmax < (CHUNK_Z * REGION_Z));
+
+	x %= CHUNK_X;
+	z %= CHUNK_Z;
+
+	for(tx = xmin; tx < xmax; tx++, x -= CHUNK_X) {
+		for(tz = zmin; tz < zmax; tz++, z -= CHUNK_Z) {
+			chunk_t c;
+			int ret;
+
+			if ( chunk_lookup(r, tx, tz, NULL, NULL) ) {
+				c = region_get_chunk(r, tx, tz);
+			}else{
+				c = chunk_new();
+			}
+			if ( NULL == c )
+				return 0;
+			if ( !region_set_chunk(r, tx, tz, c) ) {
+				chunk_put(c);
+				return 0;
+			}
+			/* TODO: get sub-schematic */
+			ret = chunk_paste_schematic(c, s, x, y, z);
+			if ( ret )
+				ret = chunk_set_terrain_populated(c, 1);
+			chunk_put(c);
+			if ( !ret )
+				return 0;
+		}
+	}
+
+	return 1;
 }

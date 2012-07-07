@@ -23,6 +23,8 @@ void region_set_timestamp(region_t r, uint8_t x, uint8_t z, uint32_t ts);
 
 uint32_t region_get_timestamp(region_t r, uint8_t x, uint8_t z);
 
+int region_paste_schematic(region_t r, schematic_t s, int x, int y, int z);
+
 /* dirty chunks reference counts are dropped */
 int region_save(region_t r);
 
