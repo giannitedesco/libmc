@@ -416,8 +416,8 @@ int region_save(region_t r)
 		goto out_close;
 
 	/* we need to sync + close the file to catch any errors */
-	if ( fsync(fd) && errno != EROFS && errno != EINVAL )
-		goto out_close;
+//	if ( fsync(fd) && errno != EROFS && errno != EINVAL )
+//		goto out_close;
 	if ( close(fd) < 0 )
 		goto out_free;
 
