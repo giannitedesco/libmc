@@ -181,6 +181,7 @@ void world_close(world_t w)
 		level_put(w->level_dat);
 		dim_close(w->overworld);
 		dim_close(w->nether);
+		free(w->path);
 		free(w);
 	}
 }

@@ -139,7 +139,7 @@ static void clear_dirty(struct _chunk *c)
 	if ( nbt_intarray_get(nbt_compound_get(c->level, "HeightMap"),
 						&hm, &num) ) {
 		for(i = 0; i < num; i++) {
-			//hm[i] = htobe32(y);
+			hm[i] = htobe32(0xff);
 		}
 	}
 
@@ -609,11 +609,11 @@ int chunk_paste_schematic(chunk_t c, schematic_t s, int x, int y, int z)
 					didx = (co * CHUNK_Z * CHUNK_X) +
 						(cz * CHUNK_X) + cx;
 					if ( didx % 2 ) {
-						cd[didx/2] = (din << 4) |
+						cd[didx / 2] = (din << 4) |
 							(cd[didx/2] & 0x0f);
 					}else{
-						cd[didx/2]=(cd[didx/2] & 0xf0) |
-							din;
+						cd[didx / 2] = (cd[didx/2] &
+								0xf0) | din;
 					}
 				}
 			}
