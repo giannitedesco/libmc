@@ -31,6 +31,7 @@ struct _chunk {
 	nbt_tag_t level;
 	nbt_tag_t seclist;
 	nbt_tag_t section[CHUNK_NUM_SECTIONS];
+	unsigned int dirty_mask;
 };
 
 static int create_section_blobs(nbt_t nbt, nbt_tag_t sec)
@@ -112,14 +113,49 @@ static nbt_tag_t get_add_section(chunk_t c, uint8_t secno)
 		c->section[secno] = sec;
 	}
 
+	c->dirty_mask |= (1 << secno);
 	return c->section[secno];
+}
+
+static void clear_dirty_section(nbt_tag_t s)
+{
+	uint8_t *buf;
+	size_t len;
+
+	if ( nbt_bytearray_get(nbt_compound_get(s, "SkyLight"),
+						&buf, &len) )
+		memset(buf, 0xff, len);
+	if ( nbt_bytearray_get(nbt_compound_get(s, "BlockLight"),
+						&buf, &len) )
+		memset(buf, 0xff, len);
+}
+
+
+static void clear_dirty(struct _chunk *c)
+{
+	unsigned int i, num;
+	int32_t *hm;
+
+	if ( nbt_intarray_get(nbt_compound_get(c->level, "HeightMap"),
+						&hm, &num) ) {
+		for(i = 0; i < num; i++) {
+			//hm[i] = htobe32(y);
+		}
+	}
+
+	for(i = 0; i < CHUNK_NUM_SECTIONS; i++) {
+		if ( c->section[i] ) {
+			clear_dirty_section(c->section[i]);
+		}
+	}
+
+	c->dirty_mask = 0;
 }
 
 int chunk_floor(chunk_t c, uint8_t y, unsigned int blk)
 {
-	unsigned int x, z, i, num;
+	unsigned int x, z;
 	uint8_t *buf, secno, ty;
-	int32_t *hm;
 	nbt_tag_t s;
 	size_t len;
 
@@ -141,18 +177,6 @@ int chunk_floor(chunk_t c, uint8_t y, unsigned int blk)
 		}
 	}
 
-	if ( !nbt_intarray_get(nbt_compound_get(c->level, "HeightMap"),
-				&hm, &num) )
-		return 0;
-	for(i = 0; i < num; i++) {
-		hm[i] = htobe32(y);
-	}
-
-	if ( !nbt_bytearray_get(nbt_compound_get(s, "SkyLight"),
-				&buf, &len) )
-		return 0;
-	memset(buf, 0xff, len);
-
 	return 1;
 }
 
@@ -165,11 +189,6 @@ int chunk_solid(chunk_t c, unsigned int blk)
 				&buf, &len) )
 		return 0;
 	memset(buf, blk, len);
-
-	if ( !nbt_bytearray_get(nbt_compound_get(c->level, "HeightMap"),
-				&buf, &len) )
-		return 0;
-	memset(buf, 0xff, len);
 
 	return 1;
 }
@@ -219,6 +238,8 @@ out:
 
 uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz)
 {
+	clear_dirty(c);
+
 	switch(enc) {
 	case CHUNK_ENC_ZLIB:
 		return chunk_enc_zlib(c, sz);
@@ -556,7 +577,6 @@ int chunk_paste_schematic(chunk_t c, schematic_t s, int x, int y, int z)
 		tmax = (i + 1) * CHUNK_SECTION_Y;
 		tmin = d_max(tmin, ymin);
 		tmax = d_min(tmax, ymax);
-		printf(" - section %d (%d -> %d)\n", i, tmin, tmax);
 		co = tmin % CHUNK_SECTION_Y;
 
 		sec = get_add_section(c, i);
@@ -571,7 +591,6 @@ int chunk_paste_schematic(chunk_t c, schematic_t s, int x, int y, int z)
 			return 0;
 
 		for(cy = 0; cy < (tmax - tmin); cy++, ci++, co++) {
-			printf("cy=%d ci=%d co=%d\n", cy, ci, co);
 			for(cx = 0; cx < sx; cx++) {
 				for(cz = 0; cz < sz; cz++) {
 					uint8_t in, *out;
