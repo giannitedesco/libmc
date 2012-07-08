@@ -338,7 +338,8 @@ int region_save(region_t r)
 	for(i = 0, pgno = 2; i < REGION_X * REGION_Z; i++) {
 		if ( r->chunks[i] ) {
 			size_t clen, tlen;
-			uint8_t *cbuf, *buf, *ptr;
+			const uint8_t *cbuf;
+			uint8_t *buf, *ptr;
 			int32_t x, z;
 
 			x = (r->x * REGION_X) + (i % REGION_X);
@@ -357,7 +358,6 @@ int region_save(region_t r)
 			tlen = clen + sizeof(*hdr);
 			buf = malloc(tlen);
 			if ( NULL == buf ) {
-				free(cbuf);
 				goto out_close;
 			}
 
@@ -367,7 +367,6 @@ int region_save(region_t r)
 
 			ptr = buf + sizeof(*hdr);
 			memcpy(ptr, cbuf, clen);
-			free(cbuf);
 
 			/* write it out */
 			ret = pwrite(fd, buf, tlen,

@@ -25,13 +25,20 @@
 #define SEC_FLOOR(y) (y / CHUNK_SECTION_Y)
 #define SEC_CEIL(y) ((y + (CHUNK_SECTION_Y - 1)) / CHUNK_SECTION_Y)
 
+struct chunk_enc {
+	uint8_t *buf;
+	size_t sz;
+};
+
 struct _chunk {
-	unsigned int ref;
 	nbt_t nbt;
 	nbt_tag_t level;
 	nbt_tag_t seclist;
 	nbt_tag_t section[CHUNK_NUM_SECTIONS];
+	struct chunk_enc zlib;
+	struct chunk_enc raw;
 	unsigned int dirty_mask;
+	unsigned int ref;
 };
 
 static int create_section_blobs(nbt_t nbt, nbt_tag_t sec)
@@ -113,7 +120,14 @@ static nbt_tag_t get_add_section(chunk_t c, uint8_t secno)
 		c->section[secno] = sec;
 	}
 
+	/* clear all cached encodings and set dirty flag */
+	free(c->zlib.buf);
+	c->zlib.buf = NULL;
+	free(c->raw.buf);
+	c->raw.buf = NULL;
+
 	c->dirty_mask |= (1 << secno);
+
 	return c->section[secno];
 }
 
@@ -193,9 +207,14 @@ int chunk_solid(chunk_t c, unsigned int blk)
 	return 1;
 }
 
-static uint8_t *chunk_enc_raw(chunk_t c, size_t *sz)
+static const uint8_t *chunk_enc_raw(chunk_t c, size_t *sz)
 {
 	uint8_t *buf;
+
+	if ( c->raw.buf ) {
+		*sz = c->raw.sz;
+		return c->raw.buf;
+	}
 
 	*sz = nbt_size_in_bytes(c->nbt);
 	buf = malloc(*sz);
@@ -206,14 +225,23 @@ static uint8_t *chunk_enc_raw(chunk_t c, size_t *sz)
 		free(buf);
 		return NULL;
 	}
+	printf("encoding\n");
 
+	c->raw.buf = buf;
+	c->raw.sz = *sz;
 	return buf;
 }
 
-static uint8_t *chunk_enc_zlib(chunk_t c, size_t *sz)
+static const uint8_t *chunk_enc_zlib(chunk_t c, size_t *sz)
 {
 	size_t dlen, clen;
-	uint8_t *dbuf, *cbuf = NULL;
+	const uint8_t *dbuf;
+	uint8_t *cbuf = NULL;
+
+	if ( c->zlib.buf ) {
+		*sz = c->zlib.sz;
+		return c->zlib.buf;
+	}
 
 	dbuf = chunk_enc_raw(c, &dlen);
 	if ( NULL == dbuf )
@@ -230,13 +258,16 @@ static uint8_t *chunk_enc_zlib(chunk_t c, size_t *sz)
 		free(cbuf);
 		cbuf = NULL;
 	}
+	printf("compressing\n");
+
+	c->zlib.buf = cbuf;
+	c->zlib.sz = clen;
 
 out:
-	free(dbuf);
 	return cbuf;
 }
 
-uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz)
+const uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz)
 {
 	clear_dirty(c);
 
@@ -518,6 +549,8 @@ out:
 static void chunk_free(chunk_t c)
 {
 	nbt_free(c->nbt);
+	free(c->raw.buf);
+	free(c->zlib.buf);
 	free(c);
 }
 

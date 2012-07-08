@@ -18,15 +18,14 @@
 #include <libmc/level.h>
 #include <libmc/world.h>
 
-static int region_init(region_t dst)
+static chunk_t floor_chunk(void)
 {
-	unsigned int i, j;
+	unsigned int i;
 	chunk_t c;
-	time_t ts = time(NULL);
 
 	c = chunk_new();
 	if ( NULL == c )
-		return 0;
+		return NULL;
 
 	if ( !chunk_set_terrain_populated(c, 1) )
 		return 0;
@@ -34,6 +33,14 @@ static int region_init(region_t dst)
 	for(i = 0; i < 12; i++) {
 		chunk_floor(c, i, (i == 0) ? 7 : 24);
 	}
+
+	return c;
+}
+
+static int region_init(region_t dst, chunk_t c)
+{
+	unsigned int i, j;
+	time_t ts = time(NULL);
 
 	for(i = 0; i < REGION_X; i++) {
 		for(j = 0; j < REGION_Z; j++) {
@@ -44,8 +51,6 @@ static int region_init(region_t dst)
 			//printf("chunk set to %u,%u in test.mcr\n", i, j);
 		}
 	}
-
-	chunk_put(c);
 
 	if ( !region_save(dst) )
 		return 0;
@@ -68,7 +73,7 @@ static int set_level_data(world_t w, const char *name)
 	return 1;
 }
 
-static int mkregion(dim_t d, int x, int z)
+static int mkregion(dim_t d, chunk_t c, int x, int z)
 {
 	region_t r;
 
@@ -77,7 +82,7 @@ static int mkregion(dim_t d, int x, int z)
 	if ( NULL == r)
 		return 0;
 
-	if ( !region_init(r) )
+	if ( !region_init(r, c) )
 		return 0;
 
 	region_put(r);
@@ -87,6 +92,7 @@ static int mkregion(dim_t d, int x, int z)
 static int do_mkworld(const char *path, const char *name)
 {
 	schematic_t s;
+	chunk_t c;
 	world_t w;
 	dim_t d;
 
@@ -99,11 +105,13 @@ static int do_mkworld(const char *path, const char *name)
 
 	d = world_get_overworld(w);
 
-	mkregion(d, 0, 0);
-	mkregion(d, 1, 1);
-	mkregion(d, 0, -1);
-	mkregion(d, -1, 0);
-	mkregion(d, -1, -1);
+	c = floor_chunk();
+	mkregion(d, c, 0, 0);
+	mkregion(d, c, 1, 1);
+	mkregion(d, c, 0, -1);
+	mkregion(d, c, -1, 0);
+	mkregion(d, c, -1, -1);
+	chunk_put(c);
 
 	s = schematic_load("7seg-lamps.schematic");
 	if ( s ) {

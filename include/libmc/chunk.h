@@ -29,7 +29,7 @@ int chunk_set_terrain_populated(chunk_t c, uint8_t p);
 chunk_t chunk_get(chunk_t c);
 void chunk_put(chunk_t c);
 
-uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz);
+const uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz);
 
 /* higher-level operations */
 int chunk_strip_entities(chunk_t c);
