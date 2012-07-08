@@ -225,7 +225,6 @@ static const uint8_t *chunk_enc_raw(chunk_t c, size_t *sz)
 		free(buf);
 		return NULL;
 	}
-	printf("encoding\n");
 
 	c->raw.buf = buf;
 	c->raw.sz = *sz;
@@ -258,7 +257,6 @@ static const uint8_t *chunk_enc_zlib(chunk_t c, size_t *sz)
 		free(cbuf);
 		cbuf = NULL;
 	}
-	printf("compressing\n");
 
 	c->zlib.buf = cbuf;
 	c->zlib.sz = clen;
@@ -531,7 +529,7 @@ chunk_t chunk_from_bytes(uint8_t *buf, size_t sz)
 		}
 	}
 
-	nbt_dump(c->nbt);
+	//nbt_dump(c->nbt);
 	//printf("decoded %zu bytes of chunk data\n", sz);
 
 	c->ref = 1;
@@ -588,7 +586,7 @@ int chunk_paste_schematic(chunk_t c, schematic_t s, int x, int y, int z)
 	ymax = d_max(y, ty);
 	zmax = d_max(z, tz);
 
-	printf("chunk: schematic dimesions %d,%d,%d -> %d,%d,%d\n",
+	printf("chunk: schematic dimensions %d,%d,%d -> %d,%d,%d\n",
 		xmin, ymin, zmin, xmax, ymax, zmax);
 
 	assert(xmin >= 0 && ymin >= 0 && zmin >= 0);

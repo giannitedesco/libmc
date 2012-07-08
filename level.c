@@ -102,7 +102,7 @@ level_t level_load(const char *path)
 		goto out_free;
 	}
 
-	nbt_dump(l->nbt);
+//	nbt_dump(l->nbt);
 
 	root = nbt_root_tag(l->nbt);
 	if ( NULL == root )
@@ -305,7 +305,7 @@ int level_save(level_t l, const char *path)
 	gzFile gz;
 	int ret, fd, rc = 0;
 
-	nbt_dump(l->nbt);
+//	nbt_dump(l->nbt);
 
 	fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0600);
 	if ( fd < 0 )

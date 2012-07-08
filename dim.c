@@ -257,7 +257,7 @@ int dim_paste_schematic(dim_t d, schematic_t s, int x, int y, int z)
 	xmax = XCEIL(d_max(x, tx));
 	zmax = ZCEIL(d_max(z, tz));
 
-	printf("dim: schematic dimesions %d %d: %d,%d -> %d,%d\n",
+	printf("dim: schematic dimensions %d %d: %d,%d -> %d,%d\n",
 		sx, sz, xmin, zmin, xmax, zmax);
 
 	x %= RX;

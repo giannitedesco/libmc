@@ -491,7 +491,7 @@ int region_paste_schematic(region_t r, schematic_t s, int x, int y, int z)
 	xmax = XCEIL(d_max(x, tx));
 	zmax = ZCEIL(d_max(z, tz));
 
-	printf("region: schematic dimesions %d %d: %d,%d -> %d,%d\n",
+	printf("region: schematic dimensions %d %d: %d,%d -> %d,%d\n",
 		sx, sz, xmin, zmin, xmax, zmax);
 
 	assert(xmin >= 0 && zmin >= 0);
