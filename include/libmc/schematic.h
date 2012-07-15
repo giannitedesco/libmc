@@ -4,6 +4,8 @@
 typedef struct _schematic *schematic_t;
 
 schematic_t schematic_load(const char *path);
+schematic_t schematic_new(int16_t x, int16_t y, int16_t z);
+schematic_t schematic_dup(schematic_t s, vec3_t mins, vec3_t maxs);
 schematic_t schematic_get(schematic_t s);
 void schematic_put(schematic_t s);
 void schematic_get_size(schematic_t s, int16_t *x, int16_t *y, int16_t *z);

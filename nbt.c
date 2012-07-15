@@ -509,12 +509,20 @@ int nbt_bytearray_set(nbt_tag_t t, const uint8_t *bytes, unsigned int num)
 	if ( NULL == t || t->t_type != NBT_TAG_Byte_Array )
 		return 0;
 
-	buf = malloc(num);
-	if ( NULL == buf )
-		return 0;
+	if ( num ) {
+		buf = malloc(num);
+		if ( NULL == buf )
+			return 0;
+	}else{
+		buf = NULL;
+		bytes = NULL;
+	}
 
 	free(t->t_u.t_blob.array);
-	memcpy(buf, bytes, num);
+	if ( bytes )
+		memcpy(buf, bytes, num);
+	else
+		memset(buf, 0, num);
 	t->t_u.t_blob.array = buf;
 	t->t_u.t_blob.len = num;
 
@@ -528,12 +536,20 @@ int nbt_intarray_set(nbt_tag_t t, const int32_t *ints, unsigned int num)
 	if ( NULL == t || t->t_type != NBT_TAG_Int_Array )
 		return 0;
 
-	buf = malloc(sizeof(int32_t) * num);
-	if ( NULL == buf )
-		return 0;
+	if ( num ) {
+		buf = malloc(sizeof(int32_t) * num);
+		if ( NULL == buf )
+			return 0;
+	}else{
+		buf = NULL;
+		ints = NULL;
+	}
 
 	free(t->t_u.t_ints.array);
-	memcpy(buf, ints, num);
+	if ( ints )
+		memcpy(buf, ints, sizeof(int32_t) * num);
+	else
+		memset(buf, 0, sizeof(int32_t) * num);
 	t->t_u.t_ints.array = buf;
 	t->t_u.t_ints.len = num;
 

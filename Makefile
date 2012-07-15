@@ -27,7 +27,8 @@ LIBMC_OBJ := world.o \
 		level.o \
 		schematic.o \
 		nbt.o \
-		hgang.o
+		hgang.o \
+		common.o
 
 MCDUMP_BIN := mcdump
 MCDUMP_LIBS := -lz

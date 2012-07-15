@@ -341,31 +341,20 @@ static int create_blob_keys(nbt_t nbt, nbt_tag_t level)
 	static const size_t sizes[] = {
 		256U,
 	};
-	size_t max = 256U;
 	unsigned int i;
-	uint8_t *buf;
-	int rc = 0;
-
-	buf = calloc(1, max);
-	if ( NULL == buf )
-		return 0;
 
 	for(i = 0; i < sizeof(names)/sizeof(*names); i++) {
 		nbt_tag_t tag;
 		tag = nbt_tag_new(nbt, NBT_TAG_Byte_Array);
 		if ( NULL == tag )
-			goto out;
-		if ( !nbt_bytearray_set(tag, buf, sizes[i]) )
-			goto out;
+			return 0;
+		if ( !nbt_bytearray_set(tag, NULL, sizes[i]) )
+			return 0;
 		if ( !nbt_compound_set(level, names[i], tag) )
-			goto out;
+			return 0;
 	}
 
-	rc = 1;
-
-out:
-	free(buf);
-	return rc;
+	return 1;
 }
 
 static int create_int_array_keys(nbt_t nbt, nbt_tag_t level)
@@ -378,29 +367,19 @@ static int create_int_array_keys(nbt_t nbt, nbt_tag_t level)
 	};
 	size_t max = 256U;
 	unsigned int i;
-	int32_t *buf;
-	int rc = 0;
-
-	buf = calloc(1, max);
-	if ( NULL == buf )
-		return 0;
 
 	for(i = 0; i < sizeof(names)/sizeof(*names); i++) {
 		nbt_tag_t tag;
 		tag = nbt_tag_new(nbt, NBT_TAG_Int_Array);
 		if ( NULL == tag )
-			goto out;
-		if ( !nbt_intarray_set(tag, buf, sizes[i]) )
-			goto out;
+			return 0;
+		if ( !nbt_intarray_set(tag, NULL, sizes[i]) )
+			return 0;
 		if ( !nbt_compound_set(level, names[i], tag) )
-			goto out;
+			return 0;
 	}
 
-	rc = 1;
-
-out:
-	free(buf);
-	return rc;
+	return 1;
 }
 
 static int create_list_keys(nbt_t nbt, nbt_tag_t level)

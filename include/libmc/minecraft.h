@@ -23,4 +23,6 @@ static inline int s_max(int a, int b)
 	return (a > b) ? a : b;
 }
 
+int libmc_gunzip(const char *path, uint8_t **begin, size_t *osz);
+
 #endif /* _MINECRAFT_H */

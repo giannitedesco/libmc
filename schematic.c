@@ -3,14 +3,6 @@
  *
  * Handle schematic.dat files
 */
-#define _GNU_SOURCE
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-#include <zlib.h>
-
 #include <libmc/minecraft.h>
 #include <libmc/nbt.h>
 #include <libmc/schematic.h>
@@ -22,55 +14,6 @@ struct _schematic {
 	unsigned ref;
 };
 
-static int gunzip(const char *path, uint8_t **begin, size_t *osz)
-{
-	int fd, ret, rc = 0;
-	uint8_t *buf;
-	size_t dlen;
-	uint32_t d;
-	gzFile gz;
-
-	/* gcc, huh?! */
-	*begin = NULL;
-	*osz = 0;
-
-	fd = open(path, O_RDONLY);
-	if ( fd < 0 )
-		goto out;
-
-	/* grab decompressed len from gzip trailer, eugh */
-	if ( lseek(fd, -sizeof(d), SEEK_END) < 0 )
-		goto out_close;
-	if ( read(fd, &d, sizeof(d)) != sizeof(d) )
-		goto out_close;
-	if ( lseek(fd, 0, SEEK_SET) < 0 )
-		goto out_close;
-
-	dlen = d;
-
-	buf = malloc(dlen);
-	if ( NULL == buf )
-		goto out_close;
-
-	gz = gzdopen(fd, "r");
-	ret = gzread(gz, buf, dlen);
-	gzclose(gz);
-	if ( ret < 0 ) {
-		free(buf);
-		goto out;
-	}
-
-	*begin = buf;
-	*osz = dlen;
-	rc = 1;
-	goto out;
-
-out_close:
-	close(fd);
-out:
-	return rc;
-}
-
 schematic_t schematic_load(const char *path)
 {
 	struct _schematic *s;
@@ -81,7 +24,7 @@ schematic_t schematic_load(const char *path)
 	if ( NULL == s )
 		goto out;
 
-	if ( !gunzip(path, &buf, &sz) )
+	if ( !libmc_gunzip(path, &buf, &sz) )
 		goto out_free;
 
 	s->nbt = nbt_decode(buf, sz);
@@ -172,4 +115,102 @@ uint8_t *schematic_get_data(schematic_t s)
 	}
 
 	return buf;
+}
+
+static nbt_tag_t create_schem_keys(struct _schematic *s)
+{
+	nbt_tag_t root, tag;
+	size_t sz = s->x * s->y * s->z;
+
+	root = nbt_root_tag(s->nbt);
+	if ( NULL == root )
+		return NULL;
+
+	tag = nbt_tag_new(s->nbt, NBT_TAG_Short);
+	if ( NULL == tag)
+		return NULL;
+	nbt_short_set(tag, s->x);
+	if ( !nbt_compound_set(root, "Width", tag) )
+		return NULL;
+
+	tag = nbt_tag_new(s->nbt, NBT_TAG_Short);
+	if ( NULL == tag)
+		return NULL;
+	nbt_short_set(tag, s->y);
+	if ( !nbt_compound_set(root, "Height", tag) )
+		return NULL;
+
+	tag = nbt_tag_new(s->nbt, NBT_TAG_Short);
+	if ( NULL == tag)
+		return NULL;
+	nbt_short_set(tag, s->z);
+	if ( !nbt_compound_set(root, "Length", tag) )
+		return NULL;
+
+	if ( !nbt_compound_set(root, "Entities",
+				nbt_tag_new_list(s->nbt, NBT_TAG_Compound)) )
+		return NULL;
+	if ( !nbt_compound_set(root, "TileEntities",
+				nbt_tag_new_list(s->nbt, NBT_TAG_Compound)) )
+		return NULL;
+
+	tag = nbt_tag_new(s->nbt, NBT_TAG_String);
+	if ( NULL == tag)
+		return NULL;
+	nbt_string_set(tag, "Alpha");
+	if ( !nbt_compound_set(root, "Materials", tag) )
+		return NULL;
+
+	tag = nbt_tag_new(s->nbt, NBT_TAG_Byte_Array);
+	if ( NULL == tag)
+		return NULL;
+	nbt_bytearray_set(tag, NULL, sz);
+	if ( !nbt_compound_set(root, "Blocks", tag) )
+		return NULL;
+
+	tag = nbt_tag_new(s->nbt, NBT_TAG_Byte_Array);
+	if ( NULL == tag)
+		return NULL;
+	nbt_bytearray_set(tag, NULL, sz);
+	if ( !nbt_compound_set(root, "Data", tag) )
+		return NULL;
+
+	return root;
+}
+
+schematic_t schematic_new(int16_t x, int16_t y, int16_t z)
+{
+	struct _schematic *s;
+
+	assert(x > 0 && y > 0 && z > 0);
+
+	s = calloc(1, sizeof(*s));
+	if ( NULL == s )
+		goto out;
+
+	s->nbt = nbt_new();
+	if ( NULL == s->nbt )
+		goto out_free;
+
+	s->x = x;
+	s->y = y;
+	s->z = z;
+	s->schem = create_schem_keys(s);
+	if ( NULL == s->schem )
+		goto out_free_nbt;
+
+	goto out; /* success */
+
+out_free_nbt:
+	nbt_free(s->nbt);
+out_free:
+	free(s);
+	s = NULL;
+out:
+	return s;
+}
+
+schematic_t schematic_dup(schematic_t s, vec3_t mins, vec3_t maxs)
+{
+	return NULL;
 }
