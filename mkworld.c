@@ -70,7 +70,7 @@ static int mkregion(dim_t d, chunk_t c, int x, int z)
 {
 	region_t r;
 
-	printf("Creating region %d, %d\n", x, z);
+	printf("Creating region: %d, %d\n", x, z);
 	r = dim_new_region(d, x, z);
 	if ( NULL == r)
 		return 0;

@@ -35,6 +35,16 @@ struct _chunk {
 	unsigned int ref;
 };
 
+static void set_dirty(struct _chunk *c, unsigned int mask)
+{
+	free(c->zlib.buf);
+	c->zlib.buf = NULL;
+	free(c->raw.buf);
+	c->raw.buf = NULL;
+
+	c->dirty_mask |= mask;
+}
+
 static int create_section_blobs(nbt_t nbt, nbt_tag_t sec)
 {
 	static const char * const names[] = {
@@ -115,13 +125,7 @@ static nbt_tag_t get_add_section(chunk_t c, uint8_t secno)
 	}
 
 	/* clear all cached encodings and set dirty flag */
-	free(c->zlib.buf);
-	c->zlib.buf = NULL;
-	free(c->raw.buf);
-	c->raw.buf = NULL;
-
-	c->dirty_mask |= (1 << secno);
-
+	set_dirty(c, 1 << secno);
 	return c->section[secno];
 }
 
@@ -276,13 +280,13 @@ const uint8_t *chunk_encode(chunk_t c, int enc, size_t *sz)
 int chunk_strip_entities(chunk_t c)
 {
 	nbt_tag_t ents;
-	int rc = 1;
 
 	ents = nbt_compound_get(c->level, "Entities");
 	if ( !nbt_list_nuke(ents) )
-		rc = 0;
+		return 0;
 
-	return rc;
+	set_dirty(c, ~0);
+	return 1;
 }
 
 int chunk_set_pos(chunk_t c, int32_t x, int32_t z)
@@ -291,6 +295,8 @@ int chunk_set_pos(chunk_t c, int32_t x, int32_t z)
 		return 0;
 	if ( !nbt_int_set(nbt_compound_get(c->level, "zPos"), z) )
 		return 0;
+
+	set_dirty(c, ~0);
 	return 1;
 }
 
@@ -305,7 +311,11 @@ int chunk_set_terrain_populated(chunk_t c, uint8_t p)
 		if ( !nbt_compound_set(c->level, "TerrainPopulated", tag) )
 			return 0;
 	}
-	return nbt_byte_set(tag, p);
+	if ( !nbt_byte_set(tag, p) )
+		return 0;
+
+	set_dirty(c, ~0);
+	return 1;
 }
 
 static int create_int_keys(nbt_t nbt, nbt_tag_t level)
@@ -365,7 +375,6 @@ static int create_int_array_keys(nbt_t nbt, nbt_tag_t level)
 	static const size_t sizes[] = {
 		256U,
 	};
-	size_t max = 256U;
 	unsigned int i;
 
 	for(i = 0; i < sizeof(names)/sizeof(*names); i++) {
