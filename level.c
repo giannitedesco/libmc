@@ -4,21 +4,15 @@
  * Handle level.dat files
 */
 #define _GNU_SOURCE
-#include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
 
 #include <zlib.h>
 
+#include <libmc/minecraft.h>
 #include <libmc/nbt.h>
 #include <libmc/level.h>
 

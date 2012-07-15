@@ -1,15 +1,9 @@
 /* Copyright (c) Gianni Tedesco 2011
  * Author: Gianni Tedesco (gianni at scaramanga dot co dot uk)
 */
-#include <stdint.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-
 #include <unistd.h>
 
+#include <libmc/minecraft.h>
 #include <libmc/schematic.h>
 #include <libmc/chunk.h>
 #include <libmc/region.h>

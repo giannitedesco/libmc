@@ -3,15 +3,9 @@
  *
  * Load each chunk. Chunks contain the actual level data encoded in NBT format
 */
-#include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <assert.h>
-
 #include <zlib.h>
 
+#include <libmc/minecraft.h>
 #include <libmc/schematic.h>
 #include <libmc/chunk.h>
 #include <libmc/nbt.h>
@@ -579,12 +573,12 @@ int chunk_paste_schematic(chunk_t c, schematic_t s, int x, int y, int z)
 	ty = y + sy;
 	tz = z + sz;
 
-	xmin = d_min(x, tx);
-	ymin = d_min(y, ty);
-	zmin = d_min(z, tz);
-	xmax = d_max(x, tx);
-	ymax = d_max(y, ty);
-	zmax = d_max(z, tz);
+	xmin = s_min(x, tx);
+	ymin = s_min(y, ty);
+	zmin = s_min(z, tz);
+	xmax = s_max(x, tx);
+	ymax = s_max(y, ty);
+	zmax = s_max(z, tz);
 
 	printf("chunk: schematic dimensions %d,%d,%d -> %d,%d,%d\n",
 		xmin, ymin, zmin, xmax, ymax, zmax);
@@ -606,8 +600,8 @@ int chunk_paste_schematic(chunk_t c, schematic_t s, int x, int y, int z)
 
 		tmin = i * CHUNK_SECTION_Y;
 		tmax = (i + 1) * CHUNK_SECTION_Y;
-		tmin = d_max(tmin, ymin);
-		tmax = d_min(tmax, ymax);
+		tmin = s_max(tmin, ymin);
+		tmax = s_min(tmax, ymax);
 		co = tmin % CHUNK_SECTION_Y;
 
 		sec = get_add_section(c, i);

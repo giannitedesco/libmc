@@ -6,23 +6,16 @@
  * like an archive format for chunks.
 */
 #define _GNU_SOURCE
-#include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <assert.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <errno.h>
 #include <fcntl.h>
 
 #include <endian.h>
 
 #include <zlib.h>
 
+#include <libmc/minecraft.h>
 #include <libmc/schematic.h>
 #include <libmc/chunk.h>
 #include <libmc/region.h>
@@ -486,10 +479,10 @@ int region_paste_schematic(region_t r, schematic_t s, int x, int y, int z)
 	tx = x + sx;
 	tz = z + sz;
 
-	xmin = XFLOOR(d_min(x, tx));
-	zmin = ZFLOOR(d_min(z, tz));
-	xmax = XCEIL(d_max(x, tx));
-	zmax = ZCEIL(d_max(z, tz));
+	xmin = XFLOOR(s_min(x, tx));
+	zmin = ZFLOOR(s_min(z, tz));
+	xmax = XCEIL(s_max(x, tx));
+	zmax = ZCEIL(s_max(z, tz));
 
 	printf("region: schematic dimensions %d %d: %d,%d -> %d,%d\n",
 		sx, sz, xmin, zmin, xmax, zmax);

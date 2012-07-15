@@ -4,14 +4,6 @@
  * Load each dimesion. Dimesions contain multiple regions.
 */
 #define _GNU_SOURCE
-#include <stdint.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-
-#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -20,6 +12,7 @@
 
 #include <zlib.h>
 
+#include <libmc/minecraft.h>
 #include <libmc/schematic.h>
 #include <libmc/chunk.h>
 #include <libmc/region.h>
@@ -252,10 +245,10 @@ int dim_paste_schematic(dim_t d, schematic_t s, int x, int y, int z)
 	tx = x + sx;
 	tz = z + sz;
 
-	xmin = XFLOOR(d_min(x, tx));
-	zmin = ZFLOOR(d_min(z, tz));
-	xmax = XCEIL(d_max(x, tx));
-	zmax = ZCEIL(d_max(z, tz));
+	xmin = XFLOOR(s_min(x, tx));
+	zmin = ZFLOOR(s_min(z, tz));
+	xmax = XCEIL(s_max(x, tx));
+	zmax = ZCEIL(s_max(z, tz));
 
 	printf("dim: schematic dimensions %d %d: %d,%d -> %d,%d\n",
 		sx, sz, xmin, zmin, xmax, zmax);

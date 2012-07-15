@@ -5,13 +5,9 @@
  * we have to load all the data in one shot.
 */
 #define _GNU_SOURCE
-#include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <limits.h>
 
+#include <libmc/minecraft.h>
 #include <libmc/nbt.h>
 
 #include "hgang.h"
